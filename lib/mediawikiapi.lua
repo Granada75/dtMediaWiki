@@ -124,10 +124,11 @@ function MediaWikiApi.uploadfile(filepath, pagetext, filename, overwrite, commen
     comment = comment,
     token = MediaWikiApi.getEditToken(),
     file = {
-      filename = filename,
+      filename = filename_replaced,
       data = file_handler:read("*all")
     }
   }
+  file_handler:close()
   if overwrite then
     content["ignorewarnings"] = "true"
   end
@@ -136,8 +137,12 @@ function MediaWikiApi.uploadfile(filepath, pagetext, filename, overwrite, commen
   req.headers["cookie"] = MediaWikiApi.cookie2string()
   req.url = MediaWikiApi.apiPath
   req.sink = ltn12.sink.table(res)
-  local _, _, resheaders = https.request(req)
-  local jsonres = json.decode(table.concat(res))
+  local _, code, resheaders = https.request(req)
+  resheaders.status = code
+  local response_body = table.concat(res)
+  MediaWikiApi.trace("  Result status:", code)
+  MediaWikiApi.trace("  Result body:", response_body)
+  local jsonres = json.decode(response_body)
   local success = jsonres.upload.result == 'Success'
   MediaWikiApi.parseCookie(resheaders["set-cookie"])
   return success
