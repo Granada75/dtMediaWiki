@@ -873,13 +873,20 @@ function MediaWikiApi.uploadfile(
       curl_filepath:gsub("\\", "/")
   end
 
-  -- Quotes inside the source path/filename would complicate curl's
-  -- multipart syntax. filename_replaced already has them stripped.
+  -- Double-quote path and filename, otherwise curl cuts them at
+  -- "," or ";". Inside quotes, curl unescapes \\ and \".
+  local function form_quote(value)
+    return '"' ..
+           value:gsub("\\", "\\\\")
+                :gsub('"', '\\"') ..
+           '"'
+  end
+
   local form_file =
     "file=@" ..
-    curl_filepath ..
+    form_quote(curl_filepath) ..
     ";filename=" ..
-    filename_replaced
+    form_quote(filename_replaced)
 
   table.insert(
     cfg,
