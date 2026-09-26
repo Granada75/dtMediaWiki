@@ -1079,7 +1079,7 @@ local preview_button =
           image.filename or ""
         )
 
-      local home = os.getenv("HOME") or "."
+      local home = os.getenv("HOME") or os.getenv("USERPROFILE") or "."
       local filename =
         home .. "/dtmediawiki-commons-preview.txt"
 
