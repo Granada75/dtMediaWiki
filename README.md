@@ -93,6 +93,10 @@ other versions, and additional Commons fields.
 Metadata can be edited for multiple selected images and copied between
 images. Named metadata presets can be saved and applied to selected images.
 
+The "Wikimedia Commons category search" module in the lighttable view
+searches Commons categories. Clicking a result adds that category to all
+selected images.
+
 The export dialog supports global categories and additional templates or
 wikitext. Filename patterns can use image metadata placeholders including
 title, descriptions, capture date, camera and lens information, exposure

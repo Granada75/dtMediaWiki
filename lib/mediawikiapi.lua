@@ -598,6 +598,44 @@ function MediaWikiApi.getUserInfo()
 end
 
 -----------------------------------------------------------------------
+-- Category search
+-----------------------------------------------------------------------
+
+-- Returns category names without the "Category:" prefix.
+function MediaWikiApi.searchCategories(term, limit)
+
+  local result =
+    MediaWikiApi.performRequest {
+      action      = "query",
+      list        = "search",
+      srsearch    = term,
+      srnamespace = "14",
+      srlimit     = tostring(limit or 10),
+      srprop      = ""
+    }
+
+  local categories = {}
+
+  if result
+      and result.query
+      and result.query.search then
+
+    for _, item in ipairs(result.query.search) do
+
+      local title =
+        tostring(item.title or "")
+          :gsub("^Category:", "")
+
+      if title ~= "" then
+        table.insert(categories, title)
+      end
+    end
+  end
+
+  return categories
+end
+
+-----------------------------------------------------------------------
 -- Login token
 -----------------------------------------------------------------------
 
