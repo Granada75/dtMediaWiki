@@ -8,12 +8,13 @@ See also: [Commons:DtMediaWiki](https://commons.wikimedia.org/wiki/Commons:DtMed
 
 ## Dependencies
 
-- [lua-sec](https://luarocks.org/modules/brunoos/luasec)
-  - Lua bindings for OpenSSL library to provide TLS/SSL communication
-- [lua-luajson](https://luarocks.org/modules/harningt/luajson)
-  - JSON parser/encoder for Lua
-- [lua-multipart-post](https://luarocks.org/modules/catwell/multipart-post)
-  - HTTP Multipart Post helper
+- [curl](https://curl.se/) available through `PATH`
+
+The MediaWiki backend uses curl for HTTPS communication, session handling,
+and multipart uploads. JSON support is bundled with the plugin.
+
+The previous external Lua dependencies `lua-sec`, `lua-luajson`, and
+`lua-multipart-post` are no longer required.
 
 Note that `mediawikiapi.lua` is independent of darktable.
 
@@ -24,6 +25,8 @@ Note that `mediawikiapi.lua` is independent of darktable.
   - `# mkdir /usr/share/darktable/lua/contrib`
 - Copy (or link) the dtMediaWiki directory over there
   - `# cp -r /path/to/dtMediaWiki /usr/share/darktable/lua/contrib`
+  - Keep the directory name `dtMediaWiki`, as the plugin loads its modules
+    and translation catalogs relative to `contrib/dtMediaWiki`.
 - Activate the plugin in your darktable luarc config file by adding `require "contrib/dtMediaWiki/dtMediaWiki"`
   - `$ echo 'require "contrib/dtMediaWiki/dtMediaWiki"' >> ~/.config/darktable/luarc`
 
@@ -31,7 +34,11 @@ Note that `mediawikiapi.lua` is independent of darktable.
 
 ## Usage
 
-- Login to Wikimedia Commons by setting your "Wikimedia username" and "Wikimedia password" in darktable preferences > lua options_ then restarting darktable.
+- Login to Wikimedia Commons by setting your "Wikimedia username" and
+  "Wikimedia password" in darktable preferences > lua options, then restart
+  darktable.
+  - The backend uses the MediaWiki ClientLogin API and supports login
+    continuations.
   - This will add the "Wikimedia Commons" entry into target storage.
 - Ensure your image contains the following [metadata](https://docs.darktable.org/usermanual/stable/en/module-reference/utility-modules/shared/metadata-editor/) and [tags](https://docs.darktable.org/usermanual/stable/en/module-reference/utility-modules/shared/tagging/):
   - **title** and/or **description** – The default output filename is `title (filename) description.ext` or `title (filename).ext` depending on what is available
@@ -39,6 +46,26 @@ Note that `mediawikiapi.lua` is independent of darktable.
   - **tags** – Categories and templates. Any tag that matches `Category:something` will be added as `[[Category:something]]` (no need to include the brackets), likewise any template matching `{{something}}` will be added as-is.
 
 The image coordinates will be added if they exist, and the creator metadata will be added as `[[User:Wikimedia username|creator]]` if it has been set.
+
+## Commons metadata
+
+dtMediaWiki provides a per-image Commons metadata editor in the lighttable
+view. It supports localized descriptions, templates, categories, Wikidata,
+other versions, and additional Commons fields.
+
+Metadata can be edited for multiple selected images and copied between
+images. Named metadata presets can be saved and applied to selected images.
+
+The export dialog supports global categories and additional templates or
+wikitext. Filename patterns can use image metadata placeholders including
+title, descriptions, capture date, camera and lens information, exposure
+data, and GPS information when available.
+
+## Translations
+
+The dtMediaWiki user interface supports gettext translations. Translation
+sources and compiled catalogs are included in the plugin's `locale`
+directory.
 
 ## See also
 
