@@ -1,352 +1,1538 @@
 --[[
-Author: Trougnouf (Benoit Brummer) <trougnouf@gmail.com>
-Contributor: Simon Legner (simon04)
+  dtMediaWiki MediaWiki API backend
 
-mediawikiapi.lua uses some code adapted from LrMediaWiki
-LrMediaWiki authors:
-Robin Krahl <robin.krahl@wikipedia.de>
-Eckhard Henkel <eckhard.henkel@wikipedia.de>
+  Uses curl for HTTP(S), session handling, and multipart uploads.
+  This avoids the lua-sec, lua-socket/ltn12, lua-luajson, and
+  lua-multipart-post dependencies used by the previous backend.
 
-Dependencies:
-* lua-sec: Lua bindings for OpenSSL library to provide TLS/SSL communication
-* lua-luajson: JSON parser/encoder for Lua
-* lua-multipart-post: HTTP Multipart Post helper
-  (darktable is not a dependency)
+  Requires:
+    curl
+    dkjson.lua
 ]]
-package.path = package.path .. ";/dtMediaWiki/?.lua"
-package.path = package.path .. ";/usr/share/darktable/lua/contrib/dtMediaWiki/?.lua"
-local https = require "ssl.https"
-local json = require "json"
-local ltn12 = require "ltn12"
-local mpost = require "multipart-post"
+
+local json = require "contrib/dtMediaWiki/lib/dkjson"
 
 local MediaWikiApi = {
-  userAgent = string.format("mediawikilua %d.%d", 0, 1),
+  userAgent = "dtMediaWiki-curl",
   apiPath = "https://commons.wikimedia.org/w/api.php",
-  cookie = {},
-  edit_token = nil
+  edit_token = nil,
+
+  -- nil: curl/curl.exe is resolved through PATH
+  curl_path = nil
 }
 
-local function httpsget(url, reqheaders)
-  local res, code, resheaders, _ =
-    https.request {
-    url = url,
-    headers = reqheaders
-  }
-  resheaders.status = code
+-----------------------------------------------------------------------
+-- Platform / paths
+-----------------------------------------------------------------------
 
-  return res, resheaders
+local is_windows =
+  package.config:sub(1, 1) == "\\"
+
+local temp_dir
+
+if is_windows then
+  temp_dir =
+    os.getenv("TEMP")
+    or os.getenv("TMP")
+    or "."
+else
+  temp_dir =
+    os.getenv("TMPDIR")
+    or "/tmp"
+
+  -- /tmp is shared among users: create a private directory (0700)
+  -- so that cookies and request files cannot be read or replaced
+  -- through predictable names or symlinks.
+  local p = io.popen(
+    "mktemp -d '" ..
+    temp_dir:gsub("'", "'\\''") ..
+    "/dtmediawiki.XXXXXXXX' 2>/dev/null"
+  )
+
+  local private_dir = p and p:read("*l")
+
+  if p then
+    p:close()
+  end
+
+  if private_dir and private_dir ~= "" then
+    temp_dir = private_dir
+  else
+    print("dtMediaWiki: mktemp -d failed, using " .. temp_dir)
+  end
 end
 
-local function httpspost(url, postBody, reqheaders)
-  local res = {}
-  local _, code, resheaders, _ =
-    https.request {
-    url = url,
-    method = "POST",
-    headers = reqheaders,
-    source = ltn12.source.string(postBody),
-    sink = ltn12.sink.table(res)
-  }
-  resheaders.status = code
+-- curl understands forward slashes on Windows and this avoids
+-- backslash escaping inside curl configuration files.
+if is_windows then
+  temp_dir = temp_dir:gsub("\\", "/")
+end
 
-  return table.concat(res), resheaders
+math.randomseed(os.time())
+
+local session_id =
+  tostring(os.time()) ..
+  "-" ..
+  tostring(math.random(100000, 999999))
+
+local function temp_file(name)
+  return temp_dir ..
+         "/dtmediawiki-" ..
+         session_id ..
+         "-" ..
+         name
+end
+
+MediaWikiApi.temp_file = temp_file
+
+local cookie_file =
+  temp_file("cookies.txt")
+
+local debug_file =
+  temp_file("debug.txt")
+
+local request_counter = 0
+
+-----------------------------------------------------------------------
+-- Debug logging
+-----------------------------------------------------------------------
+
+local function log(...)
+  local f = io.open(debug_file, "a")
+
+  if not f then
+    return
+  end
+
+  local args = {...}
+
+  for i, value in ipairs(args) do
+    f:write(tostring(value))
+
+    if i < #args then
+      f:write(" ")
+    end
+  end
+
+  f:write("\n")
+  f:close()
+end
+
+do
+  local f = io.open(debug_file, "w")
+
+  if f then
+    f:write("dtMediaWiki curl backend\n")
+    f:write("Lua: " .. tostring(_VERSION) .. "\n")
+    f:write(
+      "platform: " ..
+      (is_windows and "Windows" or "Unix") ..
+      "\n"
+    )
+    f:write("session: " .. session_id .. "\n")
+    f:close()
+  end
 end
 
 local function throwUserError(text)
-  print(text)
+  log("ERROR:", tostring(text))
+  print(tostring(text))
 end
 
--- parse a received cookie and update MediaWikiApi.cookie
-function MediaWikiApi.parseCookie(unparsedcookie_header)
-  if not unparsedcookie_header or string.len(unparsedcookie_header) == 0 then return end
-  local current_cookie_definitions = unparsedcookie_header
-  while current_cookie_definitions and string.len(current_cookie_definitions) > 0 do
-    current_cookie_definitions = string.match(current_cookie_definitions, "^%s*(.*)")
-    if string.len(current_cookie_definitions) == 0 then break end
-    local next_comma_pos = string.find(current_cookie_definitions, ",")
-    local single_cookie_def_str, remaining_definitions_after_this = "", ""
-    if next_comma_pos then
-      single_cookie_def_str = string.sub(current_cookie_definitions, 1, next_comma_pos - 1)
-      remaining_definitions_after_this = string.sub(current_cookie_definitions, next_comma_pos + 1)
-    else
-      single_cookie_def_str = current_cookie_definitions
-    end
-    single_cookie_def_str = string.match(single_cookie_def_str, "^%s*(.-)%s*$")
-    if string.len(single_cookie_def_str) > 0 then
-        local semicolon_in_def_pos = string.find(single_cookie_def_str, ";")
-        local crumb = semicolon_in_def_pos and string.sub(single_cookie_def_str, 1, semicolon_in_def_pos - 1) or single_cookie_def_str
-        crumb = string.match(crumb, "^%s*(.-)%s*$")
-        local equals_sep_pos = string.find(crumb, "=")
-        if equals_sep_pos then
-          local cvar, cval = string.sub(crumb, 1, equals_sep_pos - 1), string.sub(crumb, equals_sep_pos + 1)
-          local icvarcomma = string.find(cvar, ",")
-          while icvarcomma do cvar, icvarcomma = string.sub(cvar, icvarcomma + 2), string.find(cvar, ",") end
-          cvar, cval = string.match(cvar, "^%s*(.-)%s*$"), string.match(cval, "^%s*(.-)%s*$")
-          if string.len(cvar) > 0 then MediaWikiApi.cookie[cvar] = cval end
-        end
-    end
-    current_cookie_definitions = remaining_definitions_after_this
+-----------------------------------------------------------------------
+-- File helpers
+-----------------------------------------------------------------------
+
+local function read_file(filename)
+
+  local f, err =
+    io.open(filename, "rb")
+
+  if not f then
+    return nil, err
+  end
+
+  local content =
+    f:read("*all")
+
+  f:close()
+
+  return content
+end
+
+local function remove_file(filename)
+
+  if filename then
+    pcall(os.remove, filename)
   end
 end
 
--- generate a cookie string from MediaWikiApi.cookie to send to server
-function MediaWikiApi.cookie2string()
-  local prestr = {}
-  for cvar, cval in pairs(MediaWikiApi.cookie) do table.insert(prestr, cvar .. "=" .. cval .. ";") end
-  return table.concat(prestr)
+-----------------------------------------------------------------------
+-- curl configuration quoting
+-----------------------------------------------------------------------
+
+local function curl_escape(value)
+
+  value = tostring(value)
+
+  value = value:gsub("\\", "\\\\")
+  value = value:gsub('"', '\\"')
+  value = value:gsub("\r", "\\r")
+  value = value:gsub("\n", "\\n")
+  value = value:gsub("\t", "\\t")
+
+  return value
 end
 
--- Demand an edit token. probably can change this to request only one per session
+local function cfg_line(name, value)
+
+  return name ..
+         ' = "' ..
+         curl_escape(value) ..
+         '"\n'
+end
+
+-----------------------------------------------------------------------
+-- Shell quoting
+-----------------------------------------------------------------------
+
+local function shell_quote(value)
+
+  value = tostring(value)
+
+  if is_windows then
+    return '"' ..
+           value:gsub('"', '""') ..
+           '"'
+  end
+
+  return "'" ..
+         value:gsub("'", "'\\''") ..
+         "'"
+end
+
+local function get_curl()
+
+  if MediaWikiApi.curl_path
+      and MediaWikiApi.curl_path ~= "" then
+
+    return MediaWikiApi.curl_path
+  end
+
+  return is_windows
+         and "curl.exe"
+         or "curl"
+end
+
+-----------------------------------------------------------------------
+-- Sensitive argument detection
+-----------------------------------------------------------------------
+
+local sensitive_fields = {
+  password   = true,
+  lgpassword = true,
+  token      = true,
+  logintoken = true,
+  lgtoken    = true
+}
+
+local function safe_argument_description(arguments)
+
+  local result = {}
+
+  for key, value in pairs(arguments) do
+
+    if sensitive_fields[key] then
+
+      table.insert(
+        result,
+        tostring(key) .. "=***"
+      )
+
+    else
+
+      table.insert(
+        result,
+        tostring(key) ..
+        "=" ..
+        tostring(value)
+      )
+
+    end
+  end
+
+  table.sort(result)
+
+  return table.concat(result, " ")
+end
+
+-----------------------------------------------------------------------
+-- HTTP request
+-----------------------------------------------------------------------
+
+local function curl_request(arguments)
+
+  request_counter =
+    request_counter + 1
+
+  local request_id =
+    tostring(request_counter)
+
+  local config_file =
+    temp_file(
+      request_id .. "-request.cfg"
+    )
+
+  local response_file =
+    temp_file(
+      request_id .. "-response.json"
+    )
+
+  local stderr_file =
+    temp_file(
+      request_id .. "-stderr.txt"
+    )
+
+  local status_file =
+    temp_file(
+      request_id .. "-status.txt"
+    )
+
+  -------------------------------------------------------------
+  -- curl configuration
+  -------------------------------------------------------------
+
+  local cfg = {}
+
+  table.insert(cfg, "silent\n")
+  table.insert(cfg, "show-error\n")
+  table.insert(cfg, "location\n")
+  -- HTTP status goes to stdout, see status_file. Checked manually
+  -- because fail-with-body needs curl >= 7.76.
+  table.insert(cfg, 'write-out = "%{http_code}"\n')
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "user-agent",
+      MediaWikiApi.userAgent
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "url",
+      MediaWikiApi.apiPath
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "request",
+      "POST"
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "output",
+      response_file
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "cookie",
+      cookie_file
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "cookie-jar",
+      cookie_file
+    )
+  )
+
+  -------------------------------------------------------------
+  -- POST parameters
+  -------------------------------------------------------------
+
+  for key, value in pairs(arguments) do
+
+    table.insert(
+      cfg,
+      cfg_line(
+        "data-urlencode",
+        tostring(key) ..
+        "=" ..
+        tostring(value)
+      )
+    )
+  end
+
+  -------------------------------------------------------------
+  -- Write temporary curl config
+  -------------------------------------------------------------
+
+  local f, err =
+    io.open(config_file, "wb")
+
+  if not f then
+
+    throwUserError(
+      "Unable to create curl configuration: " ..
+      tostring(err)
+    )
+
+    return nil
+  end
+
+  f:write(table.concat(cfg))
+  f:close()
+
+  -------------------------------------------------------------
+  -- Debug metadata
+  --
+  -- Never log config contents.
+  -------------------------------------------------------------
+
+  log("")
+  log(
+    "---- request",
+    request_id,
+    "----"
+  )
+
+  log(
+    "arguments:",
+    safe_argument_description(arguments)
+  )
+
+  -------------------------------------------------------------
+  -- Execute curl
+  -------------------------------------------------------------
+
+  local command =
+    get_curl() ..
+    " --config " ..
+    shell_quote(config_file) ..
+    " > " ..
+    shell_quote(status_file) ..
+    " 2> " ..
+    shell_quote(stderr_file)
+
+  local ok, why, code =
+    os.execute(command)
+
+  log(
+    "curl:",
+    "ok=" .. tostring(ok),
+    "why=" .. tostring(why),
+    "code=" .. tostring(code)
+  )
+
+  -------------------------------------------------------------
+  -- Collect response
+  -------------------------------------------------------------
+
+  local stderr =
+    read_file(stderr_file)
+
+  if stderr
+      and stderr ~= "" then
+
+    log(
+      "curl stderr:",
+      stderr
+    )
+  end
+
+  local body, body_error =
+    read_file(response_file)
+
+  if body then
+
+    log(
+      "response bytes:",
+      tostring(#body)
+    )
+
+  else
+
+    log(
+      "response unavailable:",
+      tostring(body_error)
+    )
+  end
+
+  -------------------------------------------------------------
+  -- IMPORTANT:
+  -- Remove config immediately. It may contain credentials.
+  -------------------------------------------------------------
+
+  local status =
+    tonumber(read_file(status_file) or "")
+
+  remove_file(config_file)
+  remove_file(response_file)
+  remove_file(stderr_file)
+  remove_file(status_file)
+
+  if not ok then
+
+    throwUserError(
+      "curl request failed (" ..
+      tostring(why) ..
+      "/" ..
+      tostring(code) ..
+      ")"
+    )
+
+    return nil
+  end
+
+  if status and status >= 400 then
+
+    throwUserError(
+      "HTTP error " ..
+      tostring(status)
+    )
+
+    return nil
+  end
+
+  return body
+end
+
+-----------------------------------------------------------------------
+-- JSON
+-----------------------------------------------------------------------
+
+local function decode_json(body)
+
+  if not body then
+    return nil
+  end
+
+  -- TODO position is unused
+  local result, position, err = -- luacheck: ignore
+    json.decode(body, 1, nil)
+
+  if err then
+
+    throwUserError(
+      "JSON decode error: " ..
+      tostring(err)
+    )
+
+    return nil
+  end
+
+  return result
+end
+
+-----------------------------------------------------------------------
+-- Generic MediaWiki request
+-----------------------------------------------------------------------
+
+function MediaWikiApi.performRequest(arguments)
+
+  if arguments.format == nil then
+    arguments.format = "json"
+  end
+
+  local body =
+    curl_request(arguments)
+
+  if not body then
+    return nil
+  end
+
+  local result =
+    decode_json(body)
+
+  if not result then
+    return nil
+  end
+
+  if result.error then
+
+    throwUserError(
+      "MediaWiki API error " ..
+      tostring(result.error.code) ..
+      ": " ..
+      tostring(result.error.info)
+    )
+  end
+
+  return result
+end
+
+-----------------------------------------------------------------------
+-- User info
+-----------------------------------------------------------------------
+
+function MediaWikiApi.getUserInfo()
+
+  local result =
+    MediaWikiApi.performRequest {
+      action = "query",
+      meta   = "userinfo",
+      format = "json"
+    }
+
+  if result
+      and result.query
+      and result.query.userinfo then
+
+    return result.query.userinfo
+  end
+
+  return nil
+end
+
+-----------------------------------------------------------------------
+-- Login token
+-----------------------------------------------------------------------
+
+function MediaWikiApi.getLoginToken()
+
+  local result =
+    MediaWikiApi.performRequest {
+      action = "query",
+      meta   = "tokens",
+      type   = "login",
+      format = "json"
+    }
+
+  if result
+      and result.query
+      and result.query.tokens then
+
+    local token =
+      result.query.tokens.logintoken
+
+    if token then
+      log("login token: received")
+      return token
+    end
+  end
+
+  throwUserError(
+    "Unable to retrieve login token"
+  )
+
+  return nil
+end
+
+-----------------------------------------------------------------------
+-- Edit/CSRF token
+-----------------------------------------------------------------------
+
 function MediaWikiApi.getEditToken()
-  --if MediaWikiApi.edit_token == nil then
-  local arguments = {
-    action = "query",
-    meta = "tokens",
-    type = "csrf",
-    format = "json"
-  }
-  local jsonres = MediaWikiApi.performRequest(arguments)
-  MediaWikiApi.edit_token = jsonres.query.tokens.csrftoken
-  --end
+
+  local result =
+    MediaWikiApi.performRequest {
+      action = "query",
+      meta   = "tokens",
+      type   = "csrf",
+      format = "json"
+    }
+
+  if result
+      and result.query
+      and result.query.tokens then
+
+    MediaWikiApi.edit_token =
+      result.query.tokens.csrftoken
+  end
+
+  if MediaWikiApi.edit_token then
+    log("CSRF token: received")
+  else
+    throwUserError(
+      "Unable to retrieve CSRF token"
+    )
+  end
+
   return MediaWikiApi.edit_token
 end
 
-function MediaWikiApi.uploadfile(filepath, pagetext, filename, overwrite, comment)
-  -- Otherwise will fail, see https://github.com/trougnouf/dtMediaWiki/issues/29
-  local filename_replaced = string.gsub(string.gsub(filename, "'", ''), '"', '')
-  local file_handler = io.open(filepath)
-  local content = {
-    action = "upload",
-    format = "json",
-    filename = filename_replaced,
-    text = pagetext,
-    comment = comment,
-    token = MediaWikiApi.getEditToken(),
-    file = {
-      filename = filename_replaced,
-      data = file_handler:read("*all")
-    }
-  }
-  file_handler:close()
-  if overwrite then
-    content["ignorewarnings"] = "true"
+-----------------------------------------------------------------------
+-- Multipart upload
+--
+-- Drop-in replacement for upstream uploadfile().
+--
+-- Unlike the original implementation, the exported image is NOT read
+-- completely into Lua memory. curl streams it directly from disk.
+-----------------------------------------------------------------------
+
+function MediaWikiApi.uploadfile(
+    filepath,
+    pagetext,
+    filename,
+    overwrite,
+    comment
+)
+
+  log("")
+  log("---- upload ----")
+  log("source file:", tostring(filepath))
+  log("target filename:", tostring(filename))
+
+  ---------------------------------------------------------------------
+  -- Match upstream filename sanitizing.
+  ---------------------------------------------------------------------
+
+  local filename_replaced =
+    tostring(filename)
+      :gsub("'", "")
+      :gsub('"', "")
+
+  ---------------------------------------------------------------------
+  -- Obtain CSRF token using our authenticated cookie session.
+  ---------------------------------------------------------------------
+
+  local token =
+    MediaWikiApi.getEditToken()
+
+  if not token then
+    throwUserError(
+      "Unable to upload: no CSRF token"
+    )
+
+    return false
   end
-  local res = {}
-  local req = mpost.gen_request(content)
-  req.headers["cookie"] = MediaWikiApi.cookie2string()
-  req.url = MediaWikiApi.apiPath
-  req.sink = ltn12.sink.table(res)
-  local _, code, resheaders = https.request(req)
-  resheaders.status = code
-  local response_body = table.concat(res)
-  MediaWikiApi.trace("  Result status:", code)
-  MediaWikiApi.trace("  Result body:", response_body)
-  local jsonres = json.decode(response_body)
-  local success = jsonres.upload.result == 'Success'
-  MediaWikiApi.parseCookie(resheaders["set-cookie"])
-  return success
+
+  ---------------------------------------------------------------------
+  -- Check exported file before invoking curl.
+  ---------------------------------------------------------------------
+
+  local image =
+    io.open(filepath, "rb")
+
+  if not image then
+    throwUserError(
+      "Unable to open exported file: " ..
+      tostring(filepath)
+    )
+
+    return false
+  end
+
+  local filesize =
+    image:seek("end")
+
+  image:close()
+
+  log(
+    "source size:",
+    tostring(filesize or "unknown"),
+    "bytes"
+  )
+
+  ---------------------------------------------------------------------
+  -- Temporary files
+  ---------------------------------------------------------------------
+
+  request_counter =
+    request_counter + 1
+
+  local request_id =
+    tostring(request_counter)
+
+  local config_file =
+    temp_file(
+      request_id .. "-upload.cfg"
+    )
+
+  local response_file =
+    temp_file(
+      request_id .. "-upload-response.json"
+    )
+
+  local stderr_file =
+    temp_file(
+      request_id .. "-upload-stderr.txt"
+    )
+
+  local status_file =
+    temp_file(
+      request_id .. "-upload-status.txt"
+    )
+
+  ---------------------------------------------------------------------
+  -- Build curl configuration.
+  --
+  -- form / form-string correspond to curl -F / --form-string.
+  --
+  -- The file field deliberately uses form rather than form-string:
+  -- @ tells curl to stream the file from disk.
+  ---------------------------------------------------------------------
+
+  local cfg = {}
+
+  table.insert(cfg, "silent\n")
+  table.insert(cfg, "show-error\n")
+  table.insert(cfg, "location\n")
+  -- HTTP status goes to stdout, see status_file. Checked manually
+  -- because fail-with-body needs curl >= 7.76.
+  table.insert(cfg, 'write-out = "%{http_code}"\n')
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "user-agent",
+      MediaWikiApi.userAgent
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "url",
+      MediaWikiApi.apiPath
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "output",
+      response_file
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "cookie",
+      cookie_file
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "cookie-jar",
+      cookie_file
+    )
+  )
+
+  ---------------------------------------------------------------------
+  -- Ordinary multipart fields
+  ---------------------------------------------------------------------
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "form-string",
+      "action=upload"
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "form-string",
+      "format=json"
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "form-string",
+      "filename=" .. filename_replaced
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "form-string",
+      "text=" .. tostring(pagetext or "")
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "form-string",
+      "comment=" .. tostring(comment or "")
+    )
+  )
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "form-string",
+      "token=" .. token
+    )
+  )
+
+  if overwrite then
+
+    table.insert(
+      cfg,
+      cfg_line(
+        "form-string",
+        "ignorewarnings=true"
+      )
+    )
+
+  end
+
+  ---------------------------------------------------------------------
+  -- File field
+  --
+  -- curl config parser treats backslashes specially, therefore use /
+  -- for the path on Windows.
+  ---------------------------------------------------------------------
+
+  local curl_filepath =
+    tostring(filepath)
+
+  if is_windows then
+    curl_filepath =
+      curl_filepath:gsub("\\", "/")
+  end
+
+  -- Double-quote path and filename, otherwise curl cuts them at
+  -- "," or ";". Inside quotes, curl unescapes \\ and \".
+  local function form_quote(value)
+    return '"' ..
+           value:gsub("\\", "\\\\")
+                :gsub('"', '\\"') ..
+           '"'
+  end
+
+  local form_file =
+    "file=@" ..
+    form_quote(curl_filepath) ..
+    ";filename=" ..
+    form_quote(filename_replaced)
+
+  table.insert(
+    cfg,
+    cfg_line(
+      "form",
+      form_file
+    )
+  )
+
+  ---------------------------------------------------------------------
+  -- Write temporary curl configuration.
+  --
+  -- IMPORTANT: this contains the CSRF token and page text.
+  ---------------------------------------------------------------------
+
+  local f, err =
+    io.open(config_file, "wb")
+
+  if not f then
+
+    throwUserError(
+      "Unable to create upload configuration: " ..
+      tostring(err)
+    )
+
+    return false
+  end
+
+  f:write(table.concat(cfg))
+  f:close()
+
+  ---------------------------------------------------------------------
+  -- Execute curl
+  ---------------------------------------------------------------------
+
+  log(
+    "upload request:",
+    request_id
+  )
+
+  log(
+    "overwrite:",
+    tostring(overwrite)
+  )
+
+  -- Deliberately do NOT log cfg or the command contents beyond this.
+  -- cfg contains the CSRF token and Commons wikitext.
+
+  local command =
+    get_curl() ..
+    " --config " ..
+    shell_quote(config_file) ..
+    " > " ..
+    shell_quote(status_file) ..
+    " 2> " ..
+    shell_quote(stderr_file)
+
+  local ok, why, code =
+    os.execute(command)
+
+  log(
+    "upload curl:",
+    "ok=" .. tostring(ok),
+    "why=" .. tostring(why),
+    "code=" .. tostring(code)
+  )
+
+  ---------------------------------------------------------------------
+  -- Read results
+  ---------------------------------------------------------------------
+
+  local stderr =
+    read_file(stderr_file)
+
+  if stderr and stderr ~= "" then
+    log(
+      "upload curl stderr:",
+      stderr
+    )
+  end
+
+  local body, body_error =
+    read_file(response_file)
+
+  if body then
+
+    log(
+      "upload response bytes:",
+      tostring(#body)
+    )
+
+  else
+
+    log(
+      "upload response unavailable:",
+      tostring(body_error)
+    )
+  end
+
+  ---------------------------------------------------------------------
+  -- Remove sensitive/request-specific files immediately.
+  ---------------------------------------------------------------------
+
+  local status =
+    tonumber(read_file(status_file) or "")
+
+  remove_file(config_file)
+  remove_file(response_file)
+  remove_file(stderr_file)
+  remove_file(status_file)
+
+  if not ok then
+
+    throwUserError(
+      "curl upload failed (" ..
+      tostring(why) ..
+      "/" ..
+      tostring(code) ..
+      ")"
+    )
+
+    return false
+  end
+
+  if status and status >= 400 then
+
+    throwUserError(
+      "HTTP error " ..
+      tostring(status)
+    )
+
+    return false
+  end
+
+  if not body then
+
+    throwUserError(
+      "No response received from Commons upload API"
+    )
+
+    return false
+  end
+
+  ---------------------------------------------------------------------
+  -- Parse MediaWiki response
+  ---------------------------------------------------------------------
+
+  local result =
+    decode_json(body)
+
+  if not result then
+
+    throwUserError(
+      "Unable to decode Commons upload response"
+    )
+
+    return false
+  end
+
+  if result.error then
+
+    throwUserError(
+      "Commons upload API error " ..
+      tostring(result.error.code) ..
+      ": " ..
+      tostring(result.error.info)
+    )
+
+    return false
+  end
+
+  if not result.upload then
+
+    throwUserError(
+      "Unexpected Commons upload response"
+    )
+
+    return false
+  end
+
+  log(
+    "upload result:",
+    tostring(result.upload.result)
+  )
+
+  ---------------------------------------------------------------------
+  -- Success
+  ---------------------------------------------------------------------
+
+  if result.upload.result == "Success" then
+
+    log(
+      "upload successful:",
+      filename_replaced
+    )
+
+    return true
+  end
+
+  ---------------------------------------------------------------------
+  -- Warnings
+  --
+  -- Without ignorewarnings MediaWiki can return result="Warning".
+  -- Keep the complete warning structure out of the log for now, but
+  -- record the warning keys.
+  ---------------------------------------------------------------------
+
+  if result.upload.result == "Warning" then
+
+    log("upload warning received")
+
+    if result.upload.warnings then
+
+      for warning, _ in pairs(
+          result.upload.warnings
+      ) do
+
+        log(
+          "upload warning:",
+          tostring(warning)
+        )
+
+      end
+    end
+
+    return false
+  end
+
+  throwUserError(
+    "Commons upload returned result: " ..
+    tostring(result.upload.result)
+  )
+
+  return false
 end
 
--- Function to sanitize sensitive information in the string
-local function sanitize_output(str)
-  -- Replace password and token values with '***'
-  str = string.gsub(str, '([\'"]?)(password|token|logintoken)([\'"]?[=|:][\'"]?).-([&,}\"]])', '%1%2%3***%4')
-  return str
+-----------------------------------------------------------------------
+-- EmailAuth / interactive continuation
+-----------------------------------------------------------------------
+
+function MediaWikiApi.promptFor2FACode(prompt_message)
+
+  print(
+    "------------------------------------------------------------"
+  )
+
+  print(
+    "-- WIKIMEDIA AUTHENTICATION REQUIRED --"
+  )
+
+  print(
+    tostring(prompt_message or "")
+  )
+
+  print(
+    "Enter the verification code and press Enter:"
+  )
+
+  io.stdout:flush()
+
+  local code =
+    io.read()
+
+  print(
+    "------------------------------------------------------------"
+  )
+
+  return code
 end
 
--- Overwrite the trace function to use the sanitize_output function
-MediaWikiApi.trace = function(...)
-  local args = {...}
-  for i, v in ipairs(args) do if type(v) == "string" then args[i] = sanitize_output(v) end end
-  print(table.unpack(args))
+-----------------------------------------------------------------------
+-- Logout
+-----------------------------------------------------------------------
+
+function MediaWikiApi.logout()
+
+  MediaWikiApi.performRequest {
+    action = "logout",
+    format = "json"
+  }
+
+  MediaWikiApi.edit_token = nil
+
+  log("logout complete")
 end
 
--- Code adapted from LrMediaWiki:
+-----------------------------------------------------------------------
+-- Login
+--
+-- Authentication behavior intentionally follows upstream dtMediaWiki:
+--
+--   normal account -> clientlogin
+--   name@bot       -> action=login
+-----------------------------------------------------------------------
 
---- URL-encode a string according to RFC 3986.
--- Based on http://lua-users.org/wiki/StringRecipes
--- @param str the string to encode
--- @return the URL-encoded string
+function MediaWikiApi.login(username, password)
+
+  local credentials =
+    string.find(username, "@")
+    and "bot-account"
+    or "main-account"
+
+  log(
+    "credentials:",
+    credentials
+  )
+
+  -------------------------------------------------------------
+  -- Already logged in?
+  -------------------------------------------------------------
+
+  local user =
+    MediaWikiApi.getUserInfo()
+
+  if user
+      and user.id
+      and user.id ~= 0
+      and user.id ~= "0" then
+
+    log(
+      "already authenticated as:",
+      tostring(user.name),
+      "id:",
+      tostring(user.id)
+    )
+
+    local expected_name =
+      username
+
+    if credentials == "bot-account" then
+      expected_name =
+        string.match(
+          username,
+          "(.*)@"
+        )
+    end
+
+    if user.name == expected_name then
+
+      log(
+        "existing session can be reused"
+      )
+
+      return true
+    end
+
+    log(
+      "different user authenticated; logging out"
+    )
+
+    MediaWikiApi.logout()
+  end
+
+  -------------------------------------------------------------
+  -- Login token
+  -------------------------------------------------------------
+
+  local login_token =
+    MediaWikiApi.getLoginToken()
+
+  if not login_token then
+    return false
+  end
+
+  -------------------------------------------------------------
+  -- Normal Wikimedia account
+  -------------------------------------------------------------
+
+  if credentials == "main-account" then
+
+    local arguments = {
+      action         = "clientlogin",
+      format         = "json",
+      loginreturnurl =
+        "https://www.mediawiki.org",
+      username       = username,
+      password       = password,
+      logintoken     = login_token
+    }
+
+    while true do
+
+      local result =
+        MediaWikiApi.performRequest(
+          arguments
+        )
+
+      if not result
+          or not result.clientlogin then
+
+        throwUserError(
+          "Unexpected clientlogin response"
+        )
+
+        return false
+      end
+
+      local status =
+        result.clientlogin.status
+
+      log(
+        "clientlogin status:",
+        tostring(status)
+      )
+
+      ---------------------------------------------------------
+      -- Success
+      ---------------------------------------------------------
+
+      if status == "PASS" then
+
+        local authenticated_user =
+          MediaWikiApi.getUserInfo()
+
+        if authenticated_user then
+
+          log(
+            "login successful:",
+            tostring(authenticated_user.name),
+            "id:",
+            tostring(authenticated_user.id)
+          )
+
+        else
+
+          log(
+            "login successful; userinfo unavailable"
+          )
+        end
+
+        return true
+
+      ---------------------------------------------------------
+      -- Interactive authentication
+      ---------------------------------------------------------
+
+      elseif status == "UI" then
+
+        local requests =
+          result.clientlogin.requests
+
+        local auth_request =
+          requests
+          and requests[1]
+
+        if auth_request
+            and auth_request.id ==
+              "MediaWiki\\Extension\\EmailAuth\\EmailAuthAuthenticationRequest"
+        then
+
+          local code =
+            MediaWikiApi.promptFor2FACode(
+              result.clientlogin.message
+            )
+
+          if not code
+              or code == "" then
+
+            throwUserError(
+              "Authentication cancelled"
+            )
+
+            return false
+          end
+
+          arguments = {
+            action        = "clientlogin",
+            format        = "json",
+            logincontinue = "1",
+            logintoken    = login_token,
+            token         = code
+          }
+
+        else
+
+          throwUserError(
+            "Unsupported Wikimedia authentication step"
+          )
+
+          return false
+        end
+
+      ---------------------------------------------------------
+      -- Other failure/status
+      ---------------------------------------------------------
+
+      else
+
+        throwUserError(
+          "Wikimedia login failed: " ..
+          tostring(
+            result.clientlogin.message
+            or status
+            or "unknown reason"
+          )
+        )
+
+        return false
+      end
+    end
+
+  -------------------------------------------------------------
+  -- Bot password
+  -------------------------------------------------------------
+
+  else
+
+    local result =
+      MediaWikiApi.performRequest {
+        action     = "login",
+        format     = "json",
+        lgname     = username,
+        lgpassword = password,
+        lgtoken    = login_token
+      }
+
+    if result
+        and result.login
+        and result.login.result ==
+          "Success" then
+
+      log("bot login successful")
+
+      return true
+    end
+
+    throwUserError(
+      "Bot login failed: " ..
+      tostring(
+        result
+        and result.login
+        and result.login.reason
+        or "unknown reason"
+      )
+    )
+
+    return false
+  end
+end
+
+-----------------------------------------------------------------------
+-- Compatibility helpers retained from original module
+-----------------------------------------------------------------------
+
 function MediaWikiApi.urlEncode(str)
+
   if str then
-    str = string.gsub(str, "\n", "\r\n")
+
     str =
       string.gsub(
-      str,
-      "([^%w %-%_%.%~])",
-      function(c)
-        return string.format("%%%02X", string.byte(c))
-      end
-    )
-    str = string.gsub(str, " ", "+")
+        str,
+        "\n",
+        "\r\n"
+      )
+
+    str =
+      string.gsub(
+        str,
+        "([^%w %-%_%.%~])",
+        function(c)
+          return string.format(
+            "%%%02X",
+            string.byte(c)
+          )
+        end
+      )
+
+    str =
+      string.gsub(
+        str,
+        " ",
+        "+"
+      )
   end
+
   return str
 end
 
---- Convert HTTP arguments to a URL-encoded request body.
--- @param arguments (table) the arguments to convert
--- @return (string) a request body created from the URL-encoded arguments
 function MediaWikiApi.createRequestBody(arguments)
+
   local body = nil
+
   for key, value in pairs(arguments) do
+
     if body then
       body = body .. "&"
     else
       body = ""
     end
-    body = body .. MediaWikiApi.urlEncode(key) .. "=" .. MediaWikiApi.urlEncode(value)
+
+    body =
+      body ..
+      MediaWikiApi.urlEncode(key) ..
+      "=" ..
+      MediaWikiApi.urlEncode(value)
   end
+
   return body or ""
 end
 
-function MediaWikiApi.performHttpRequest(path, arguments, post) -- changed signature!
-  local requestBody = MediaWikiApi.createRequestBody(arguments)
-  local requestHeaders = {
-    ["Content-Type"] = "application/x-www-form-urlencoded",
-    ["User-Agent"] = MediaWikiApi.userAgent
-  }
-  if post then
-    requestHeaders["Content-Length"] = #requestBody
-  end
-  requestHeaders["Cookie"] = MediaWikiApi.cookie2string()
-  MediaWikiApi.trace("Performing HTTP request")
-  MediaWikiApi.trace("  Path:", path)
-  MediaWikiApi.trace("  Request body:", requestBody)
+-----------------------------------------------------------------------
+-- Debug/development helpers
+-----------------------------------------------------------------------
 
-  local resultBody, resultHeaders
-  if post then
-    resultBody, resultHeaders = httpspost(path, requestBody, requestHeaders)
-  else
-    resultBody, resultHeaders = httpsget(path, requestBody, requestHeaders)
-  end
-
-  MediaWikiApi.trace("  Result status:", resultHeaders.status)
-
-  if not resultHeaders.status then
-    throwUserError("No network connection")
-  elseif resultHeaders.status ~= 200 then
-    -- Intentionally not calling httpError here, as it doesn't exist in the original file
-  end
-  MediaWikiApi.parseCookie(resultHeaders["set-cookie"])
-  MediaWikiApi.trace("  Result body:", resultBody)
-  return resultBody
+function MediaWikiApi.getDebugFile()
+  return debug_file
 end
 
-function MediaWikiApi.performRequest(arguments)
-  local resultBody = MediaWikiApi.performHttpRequest(MediaWikiApi.apiPath, arguments, true)
-  local jsonres = json.decode(resultBody)
-  return jsonres
+function MediaWikiApi.cleanup()
+
+  remove_file(cookie_file)
+
+  MediaWikiApi.edit_token = nil
+
+  log("session cleanup")
 end
-
-function MediaWikiApi.logout()
-  -- See https://www.mediawiki.org/wiki/API:Logout
-  local arguments = {
-    action = "logout"
-  }
-  MediaWikiApi.performRequest(arguments)
-end
-
-function MediaWikiApi.promptFor2FACode(prompt_message)
-  print("------------------------------------------------------------------")
-  print("-- TWO-FACTOR AUTHENTICATION REQUIRED --")
-  print(prompt_message)
-  print("Please check your email, then type the verification code here and press Enter:")
-  io.stdout:flush()
-  local code = io.read()
-  print("------------------------------------------------------------------")
-  return code
-end
-
-function MediaWikiApi.login(username, password)
-  -- See https://www.mediawiki.org/wiki/API:Login
-  -- Check if the credentials are a main-account or a bot-account.
-  -- The different credentials need different login arguments.
-  -- The existance of the character "@" inside of an username is an
-  -- identicator if the credentials are a bot-account or a main-account.
-  local credentials = string.find(username, "@") and "bot-account" or "main-account"
-  MediaWikiApi.trace("Credentials: " .. credentials)
-
-  -- Check if a user is logged in:
-  local arguments = { action = "query", meta = "userinfo", format = "json" }
-  local jsonres = MediaWikiApi.performRequest(arguments)
-  local id, name = jsonres.query.userinfo.id, jsonres.query.userinfo.name
-  if id ~= 0 and id ~= "0" then
-    MediaWikiApi.trace('Logged in as user "' .. name .. '" (ID: ' .. id .. ")")
-    if name == username or (credentials == "bot-account" and name == string.match(username, "(.*)@")) then
-      MediaWikiApi.trace("No new login needed")
-      return true
-    end
-    MediaWikiApi.trace('Logout and new login needed with username "' .. username .. '".')
-    MediaWikiApi.logout()
-  else
-    MediaWikiApi.trace("Not logged in, need to login")
-  end
-
-  -- A login token needs to be retrieved prior of a login action:
-  arguments = { action = "query", meta = "tokens", type = "login", format = "json" }
-  jsonres = MediaWikiApi.performRequest(arguments)
-  local logintoken = jsonres.query.tokens.logintoken
-
-  -- Perform login:
-  if credentials == "main-account" then
-    arguments = {
-      format = "json", action = "clientlogin", loginreturnurl = "https://www.mediawiki.org",
-      username = username, password = password, logintoken = logintoken
-    }
-    while true do
-      jsonres = MediaWikiApi.performRequest(arguments)
-      local loginResult = jsonres.clientlogin.status
-      if loginResult == "PASS" then
-        MediaWikiApi.trace("Login successful.")
-        return true
-      elseif loginResult == "UI" then
-        MediaWikiApi.trace("UI interaction required for login: " .. (jsonres.clientlogin.message or "No message"))
-        local authRequest = jsonres.clientlogin.requests and jsonres.clientlogin.requests[1]
-        
-        if authRequest and authRequest.id == "MediaWiki\\Extension\\EmailAuth\\EmailAuthAuthenticationRequest" then
-          local two_factor_code = MediaWikiApi.promptFor2FACode(jsonres.clientlogin.message)
-          if not two_factor_code or two_factor_code == "" then
-            MediaWikiApi.trace("User cancelled 2FA input. Login failed.")
-            return false
-          end
-          
-          -- Rebuild the arguments for the continuation request, per the API documentation.
-          arguments = {
-              action = "clientlogin",
-              format = "json",
-              logincontinue = "1", -- Must be a string "1", not a boolean
-              logintoken = logintoken,
-              token = two_factor_code -- The user's 2FA code
-          }
-        else
-          MediaWikiApi.trace("Login failed: Unsupported UI authentication step.")
-          return false
-        end
-      else
-        MediaWikiApi.trace('Login failed: ' .. (jsonres.clientlogin.message or "Unknown reason"))
-        return false
-      end
-    end
-  else -- credentials == "bot-account"
-    assert(credentials == "bot-account")
-    arguments = {
-      format = "json",
-      action = "login",
-      lgname = username,
-      lgpassword = password,
-      lgtoken = logintoken
-    }
-    jsonres = MediaWikiApi.performRequest(arguments)
-    local loginResult = jsonres.login.result
-    if loginResult == "Success" then
-      return true
-    else
-      MediaWikiApi.trace('Login failed: ' .. (jsonres.login.reason or "Unknown reason"))
-      return false
-    end
-  end
-end
--- end of LrMediaWiki code
 
 return MediaWikiApi

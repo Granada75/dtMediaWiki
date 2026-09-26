@@ -1,0 +1,508 @@
+# German translations for dtMediaWiki.
+# Copyright (C) 2026 dtMediaWiki contributors
+# This file is distributed under the same license as dtMediaWiki.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dtMediaWiki\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-09-26 09:09+0200\n"
+"PO-Revision-Date: 2026-09-26 09:30+0200\n"
+"Language: de\n"
+"Last-Translator: dtMediaWiki contributors\n"
+"Language-Team: German\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: dtMediaWiki.lua:48
+msgid "Commons: Categorize camera?"
+msgstr "Commons: Nach Kamera kategorisieren?"
+
+#: dtMediaWiki.lua:49
+msgid "A category will be added with the camera information (eg: [[Category:Taken with Fujifilm X-E2 and XF18-55mmF2.8-4 R LM OIS]])"
+msgstr "Eine Kategorie mit den Kamerainformationen wird hinzugefügt (z. B. [[Category:Taken with Fujifilm X-E2 and XF18-55mmF2.8-4 R LM OIS]])."
+
+#: dtMediaWiki.lua:58
+msgid "Commons: Templates to be placed in {{Information |description= ...}}"
+msgstr "Commons: Vorlagen für {{Information |description= ...}}"
+
+#: dtMediaWiki.lua:59
+msgid "These templates are placed in the {{Information |description= ...}} field. (comma-separated)"
+msgstr "Diese Vorlagen werden in das Feld {{Information |description= ...}} eingefügt (durch Kommas getrennt)."
+
+#: dtMediaWiki.lua:67
+msgid "Commons: Overwrite existing images?"
+msgstr "Commons: Vorhandene Dateien überschreiben?"
+
+#: dtMediaWiki.lua:68
+msgid "Existing images will be overwritten  without confirmation, otherwise the upload will fail."
+msgstr "Vorhandene Dateien werden ohne Rückfrage überschrieben; andernfalls schlägt der Upload fehl."
+
+#: dtMediaWiki.lua:76
+msgid "Commons: Preferred author pattern"
+msgstr "Commons: Bevorzugtes Muster für den Urheber"
+
+#: dtMediaWiki.lua:77
+msgid "Determines the author value; variables are $USERNAME, $CREATOR"
+msgstr "Legt den Wert für den Urheber fest; Variablen sind $USERNAME und $CREATOR."
+
+#: dtMediaWiki.lua:85
+msgid "Commons: Preferred filename pattern"
+msgstr "Commons: Bevorzugtes Dateinamensmuster"
+
+#: dtMediaWiki.lua:86
+msgid "Determines the filename value; variables are $TITLE, $DESCRIPTION, $FILE_NAME"
+msgstr "Legt den Dateinamen fest; Variablen sind $TITLE, $DESCRIPTION und $FILE_NAME."
+
+#: dtMediaWiki.lua:95
+msgid "Commons: Allow empty 'Information|description' on page?"
+msgstr "Commons: Leeres Feld „Information|description“ auf der Seite erlauben?"
+
+#: dtMediaWiki.lua:96
+msgid "If unchecked (default), images where both title and description metadata are empty will not be uploaded, as this results in an empty '{{Information|description=...}}' field on Wikimedia Commons. If checked, such uploads are allowed (unless the filename pattern specifically requires title or description)."
+msgstr "Wenn diese Option deaktiviert ist (Standard), werden Bilder ohne Titel und Beschreibung nicht hochgeladen, da dadurch auf Wikimedia Commons ein leeres Feld „{{Information|description=...}}“ entsteht. Ist die Option aktiviert, sind solche Uploads erlaubt (sofern das Dateinamensmuster nicht ausdrücklich einen Titel oder eine Beschreibung erfordert)."
+
+#: dtMediaWiki.lua:106
+msgid "Commons: Default license"
+msgstr "Commons: Standardlizenz"
+
+#: dtMediaWiki.lua:107
+msgid "Default license for images uploaded to Wikimedia Commons (eg: CC-BY-SA-4.0, CC-BY-4.0, PD, ...)"
+msgstr "Standardlizenz für zu Wikimedia Commons hochgeladene Bilder (z. B. CC-BY-SA-4.0, CC-BY-4.0, PD, ...)."
+
+#: dtMediaWiki.lua:115
+msgid "Wikimedia password"
+msgstr "Wikimedia-Passwort"
+
+#: dtMediaWiki.lua:116
+msgid "Wikimedia Commons password (to be stored in plain-text!)"
+msgstr "Wikimedia-Commons-Passwort (wird im Klartext gespeichert!)."
+
+#: dtMediaWiki.lua:124
+msgid "Wikimedia username"
+msgstr "Wikimedia-Benutzername"
+
+#: dtMediaWiki.lua:125
+msgid "Wikimedia Commons username"
+msgstr "Wikimedia-Commons-Benutzername"
+
+#: dtMediaWiki.lua:135
+msgid "Determines the `File:` page name on Wikimedia Commons."
+msgstr "Legt den Namen der `File:`-Seite auf Wikimedia Commons fest."
+
+#: dtMediaWiki.lua:137
+msgid "Placeholder syntax:"
+msgstr "Platzhalter-Syntax:"
+
+#: dtMediaWiki.lua:138
+msgid "  <dateYYYYMMDD> - capture date as YYYYMMDD"
+msgstr "  <dateYYYYMMDD> – Aufnahmedatum als YYYYMMDD"
+
+#: dtMediaWiki.lua:139
+msgid "  <title> - title from image metadata"
+msgstr "  <title> – Titel aus den Bildmetadaten"
+
+#: dtMediaWiki.lua:140
+msgid "  <fileName> - original filename using the export extension"
+msgstr "  <fileName> – ursprünglicher Dateiname mit der Export-Dateiendung"
+
+#: dtMediaWiki.lua:141
+msgid "  and other placeholders available in the selector below"
+msgstr "  sowie weitere Platzhalter aus der Auswahl unten"
+
+#: dtMediaWiki.lua:143
+msgid "Legacy variables are still supported:"
+msgstr "Ältere Variablen werden weiterhin unterstützt:"
+
+#: dtMediaWiki.lua:144
+msgid "  $FILE_NAME"
+msgstr "  $FILE_NAME"
+
+#: dtMediaWiki.lua:145
+msgid "  $TITLE"
+msgstr "  $TITLE"
+
+#: dtMediaWiki.lua:146
+msgid "  $DESCRIPTION"
+msgstr "  $DESCRIPTION"
+
+#: dtMediaWiki.lua:186
+msgid "Insert placeholder"
+msgstr "Platzhalter einfügen"
+
+#: dtMediaWiki.lua:188
+msgid "Append a placeholder into the Wikimedia Commons filename pattern."
+msgstr "Fügt einen Platzhalter in das Dateinamensmuster für Wikimedia Commons ein."
+
+#: dtMediaWiki.lua:235
+msgid "Description language code. Additional descriptions may be added with tag {{Description|language_code|description_text}} or any of the templates listed in the desc_template setting."
+msgstr "Sprachcode der Beschreibung. Weitere Beschreibungen können mit dem Tag {{Description|language_code|description_text}} oder mit einer der in der Einstellung desc_template aufgeführten Vorlagen hinzugefügt werden."
+
+#: dtMediaWiki.lua:303
+msgid "Filename pattern resulted in an empty name, falling back to input image basename."
+msgstr "Das Dateinamensmuster ergab einen leeren Namen; stattdessen wird der Basisname des Eingabebildes verwendet."
+
+#: dtMediaWiki.lua:409
+msgid "Commons categories added to every image in this export. Enter one category per line, without [[Category:...]]."
+msgstr "Commons-Kategorien, die jedem Bild dieses Exports hinzugefügt werden. Eine Kategorie pro Zeile eingeben, ohne [[Category:...]]."
+
+#: dtMediaWiki.lua:424
+msgid "Additional Wikitext added to every Commons file page in this export, for example {{Supported by Wikimedia Österreich}}."
+msgstr "Zusätzlicher Wikitext, der jeder Commons-Dateiseite dieses Exports hinzugefügt wird, zum Beispiel {{Supported by Wikimedia Österreich}}."
+
+#: dtMediaWiki.lua:455
+msgid "dtMediaWiki.get_alt_images: looking at "
+msgstr "dtMediaWiki.get_alt_images: prüfe "
+
+#: dtMediaWiki.lua:457
+msgid "dtMediaWiki.get_alt_images: looking for "
+msgstr "dtMediaWiki.get_alt_images: suche nach "
+
+#: dtMediaWiki.lua:461
+msgid "dtMediaWiki.get_alt_images: found "
+msgstr "dtMediaWiki.get_alt_images: gefunden "
+
+#: dtMediaWiki.lua:742 dtMediaWiki.lua:744
+msgid "Uploaded with dtMediaWiki "
+msgstr "Hochgeladen mit dtMediaWiki "
+
+#: dtMediaWiki.lua:868 dtMediaWiki.lua:1027 dtMediaWiki.lua:1029
+msgid "Error: "
+msgstr "Fehler: "
+
+#: dtMediaWiki.lua:878
+msgid "register_storage_store: exporting the following image:"
+msgstr "register_storage_store: exportiere folgendes Bild:"
+
+#: dtMediaWiki.lua:882
+msgid "BUG: invalid tag 0 for image "
+msgstr "FEHLER: ungültiger Tag 0 für Bild "
+
+#: dtMediaWiki.lua:900 dtMediaWiki.lua:916
+msgid "exported "
+msgstr "hochgeladen: "
+
+#: dtMediaWiki.lua:902
+msgid "Failed to export "
+msgstr "Export fehlgeschlagen: "
+
+#: dtMediaWiki.lua:917
+msgid " images to Wikimedia Commons"
+msgstr " Bilder zu Wikimedia Commons hochgeladen"
+
+#: dtMediaWiki.lua:951
+msgid "BUG: dt.register_storage.initialize sent a number instead of dt_lua_image_t in images table: "
+msgstr "FEHLER: dt.register_storage.initialize hat in der Bildertabelle eine Zahl statt dt_lua_image_t übergeben: "
+
+#: dtMediaWiki.lua:957
+msgid "has no rights"
+msgstr "hat keine Rechteangabe"
+
+#: dtMediaWiki.lua:974
+msgid "is missing a title, which is required by the filename pattern"
+msgstr "hat keinen Titel, der vom Dateinamensmuster benötigt wird"
+
+#: dtMediaWiki.lua:990
+msgid "is missing a description, which is required by the filename pattern"
+msgstr "hat keine Beschreibung, die vom Dateinamensmuster benötigt wird"
+
+#: dtMediaWiki.lua:1019
+msgid "is missing both title and description, resulting in an empty 'Information|description' field on the Commons page (and the 'Allow empty Information|description...' preference is off)"
+msgstr "hat weder Titel noch Beschreibung, wodurch auf der Commons-Seite ein leeres Feld „Information|description“ entstehen würde (und die Einstellung „Leeres Information|description erlauben …“ ist deaktiviert)"
+
+#: dtMediaWiki.lua:1044
+msgid ", won't be exported to Wikimedia Commons"
+msgstr ", wird nicht zu Wikimedia Commons hochgeladen"
+
+#: dtMediaWiki.lua:1057
+msgid "Write Commons preview"
+msgstr "Commons-Vorschau schreiben"
+
+#: dtMediaWiki.lua:1111
+msgid "Naming pattern:"
+msgstr "Namensmuster:"
+
+#: dtMediaWiki.lua:1124 lib/placeholders.lua:1052
+msgid "Categories"
+msgstr "Kategorien"
+
+#: dtMediaWiki.lua:1132 lib/placeholders.lua:1041
+msgid "Templates"
+msgstr "Vorlagen"
+
+#: dtMediaWiki.lua:1143
+msgid "Comment:"
+msgstr "Kommentar:"
+
+#: dtMediaWiki.lua:1153
+msgid "Language code:"
+msgstr "Sprachcode:"
+
+#: dtMediaWiki.lua:1155
+msgid "Description language code (eg: en, fr, ...)."
+msgstr "Sprachcode der Beschreibung (z. B. en, fr, ...)."
+
+#: dtMediaWiki.lua:1181
+msgid "Unable to log into Wikimedia Commons, export disabled."
+msgstr "Anmeldung bei Wikimedia Commons nicht möglich; Export deaktiviert."
+
+#: lib/metadata_ui.lua:37
+msgid "<multiple values>"
+msgstr "<mehrere Werte>"
+
+#: lib/metadata_ui.lua:82
+msgid "Metadata preset"
+msgstr "Metadatenvorgabe"
+
+#: lib/metadata_ui.lua:84
+msgid "Select metadata preset"
+msgstr "Metadatenvorgabe auswählen"
+
+#: lib/metadata_ui.lua:90
+msgid "Metadata preset name"
+msgstr "Name der Metadatenvorgabe"
+
+#: lib/metadata_ui.lua:134 lib/metadata_ui.lua:763
+msgid "No image selected"
+msgstr "Kein Bild ausgewählt"
+
+#: lib/metadata_ui.lua:490
+msgid "dtMediaWiki: preset contains no image metadata"
+msgstr "dtMediaWiki: Vorgabe enthält keine Bildmetadaten"
+
+#: lib/metadata_ui.lua:500 lib/metadata_ui.lua:932
+msgid "dtMediaWiki: no image selected"
+msgstr "dtMediaWiki: kein Bild ausgewählt"
+
+#: lib/metadata_ui.lua:631
+msgid "dtMediaWiki: the preset needs a name"
+msgstr "dtMediaWiki: Die Vorgabe benötigt einen Namen"
+
+#: lib/metadata_ui.lua:685
+#, lua-format
+msgid "dtMediaWiki: preset could not be saved: %s"
+msgstr "dtMediaWiki: Vorgabe konnte nicht gespeichert werden: %s"
+
+#: lib/metadata_ui.lua:732
+#, lua-format
+msgid "dtMediaWiki: preset saved: %s"
+msgstr "dtMediaWiki: Vorgabe gespeichert: %s"
+
+#: lib/metadata_ui.lua:792
+#, lua-format
+msgid "%d images selected"
+msgstr "Ausgewählte Bilder: %d"
+
+#: lib/metadata_ui.lua:882
+msgid "dtMediaWiki: select exactly one source image"
+msgstr "dtMediaWiki: genau ein Quellbild auswählen"
+
+#: lib/metadata_ui.lua:910
+msgid "dtMediaWiki: metadata copied"
+msgstr "dtMediaWiki: Metadaten kopiert"
+
+#: lib/metadata_ui.lua:920
+msgid "dtMediaWiki: no copied metadata available"
+msgstr "dtMediaWiki: keine kopierten Metadaten vorhanden"
+
+#: lib/metadata_ui.lua:958
+#, lua-format
+msgid "dtMediaWiki: metadata pasted to %d image(s)"
+msgstr "dtMediaWiki: Metadaten eingefügt; Zielbilder: %d"
+
+#: lib/metadata_ui.lua:970
+msgid "Edit preset"
+msgstr "Vorgabe bearbeiten"
+
+#: lib/metadata_ui.lua:976
+msgid "New preset"
+msgstr "Neue Vorgabe"
+
+#: lib/metadata_ui.lua:982
+msgid "Save"
+msgstr "Speichern"
+
+#: lib/metadata_ui.lua:988
+msgid "Close"
+msgstr "Schließen"
+
+#: lib/metadata_ui.lua:997
+msgid "Apply preset"
+msgstr "Vorgabe anwenden"
+
+#: lib/metadata_ui.lua:1003
+msgid "Copy metadata"
+msgstr "Metadaten kopieren"
+
+#: lib/metadata_ui.lua:1009
+msgid "Paste metadata"
+msgstr "Metadaten einfügen"
+
+#: lib/metadata_ui.lua:1022
+msgid "Edit metadata preset"
+msgstr "Metadatenvorgabe bearbeiten"
+
+#: lib/metadata_ui.lua:1033
+msgid "Name"
+msgstr "Name"
+
+#: lib/metadata_ui.lua:1166
+msgid "Wikimedia Commons metadata"
+msgstr "Wikimedia-Commons-Metadaten"
+
+#: lib/placeholders.lua:118
+msgid "Other"
+msgstr "Sonstiges"
+
+#: lib/placeholders.lua:636
+msgid "File name"
+msgstr "Dateiname"
+
+#: lib/placeholders.lua:637 lib/placeholders.lua:677 lib/placeholders.lua:665
+msgid "File"
+msgstr "Datei"
+
+#: lib/placeholders.lua:664
+msgid "File base name"
+msgstr "Dateibasisname"
+
+#: lib/placeholders.lua:676
+msgid "Export extension"
+msgstr "Export-Dateiendung"
+
+#: lib/placeholders.lua:694
+msgid "Title"
+msgstr "Titel"
+
+#: lib/placeholders.lua:695 lib/placeholders.lua:705 lib/placeholders.lua:745
+#: lib/placeholders.lua:755 lib/placeholders.lua:1009 lib/placeholders.lua:1020
+#: lib/placeholders.lua:1031
+msgid "Description"
+msgstr "Beschreibung"
+
+#: lib/placeholders.lua:704
+msgid "darktable description"
+msgstr "darktable-Beschreibung"
+
+#: lib/placeholders.lua:716
+msgid "German description"
+msgstr "Deutsche Beschreibung"
+
+#: lib/placeholders.lua:717 lib/placeholders.lua:731 lib/placeholders.lua:1042
+#: lib/placeholders.lua:1053 lib/placeholders.lua:1065
+#: lib/placeholders.lua:1076 lib/placeholders.lua:1087
+msgid "Commons"
+msgstr "Commons"
+
+#: lib/placeholders.lua:730
+msgid "English description"
+msgstr "Englische Beschreibung"
+
+#: lib/placeholders.lua:744
+msgid "Creator"
+msgstr "Urheber"
+
+#: lib/placeholders.lua:754
+msgid "Copyright / rights"
+msgstr "Copyright / Rechte"
+
+#: lib/placeholders.lua:768
+msgid "Capture date/time"
+msgstr "Aufnahmedatum/-zeit"
+
+#: lib/placeholders.lua:769 lib/placeholders.lua:782 lib/placeholders.lua:802
+#: lib/placeholders.lua:816 lib/placeholders.lua:830
+msgid "Date"
+msgstr "Datum"
+
+#: lib/placeholders.lua:781
+msgid "Date YYYYMMDD"
+msgstr "Datum YYYYMMDD"
+
+#: lib/placeholders.lua:801
+msgid "Year"
+msgstr "Jahr"
+
+#: lib/placeholders.lua:815
+msgid "Month"
+msgstr "Monat"
+
+#: lib/placeholders.lua:829
+msgid "Day"
+msgstr "Tag"
+
+#: lib/placeholders.lua:847
+msgid "Camera manufacturer"
+msgstr "Kamerahersteller"
+
+#: lib/placeholders.lua:848 lib/placeholders.lua:858 lib/placeholders.lua:868
+#: lib/placeholders.lua:878 lib/placeholders.lua:896 lib/placeholders.lua:914
+#: lib/placeholders.lua:932
+msgid "Camera"
+msgstr "Kamera"
+
+#: lib/placeholders.lua:857
+msgid "Camera model"
+msgstr "Kameramodell"
+
+#: lib/placeholders.lua:867
+msgid "Lens"
+msgstr "Objektiv"
+
+#: lib/placeholders.lua:877
+msgid "Focal length"
+msgstr "Brennweite"
+
+#: lib/placeholders.lua:895
+msgid "Aperture"
+msgstr "Blende"
+
+#: lib/placeholders.lua:913
+msgid "Exposure time"
+msgstr "Belichtungszeit"
+
+#: lib/placeholders.lua:931
+msgid "ISO"
+msgstr "ISO"
+
+#: lib/placeholders.lua:953
+msgid "GPS latitude"
+msgstr "GPS-Breitengrad"
+
+#: lib/placeholders.lua:954 lib/placeholders.lua:970 lib/placeholders.lua:986
+msgid "Location"
+msgstr "Ort"
+
+#: lib/placeholders.lua:969
+msgid "GPS longitude"
+msgstr "GPS-Längengrad"
+
+#: lib/placeholders.lua:985
+msgid "GPS altitude"
+msgstr "GPS-Höhe"
+
+#: lib/placeholders.lua:1008
+msgid "Description (de)"
+msgstr "Beschreibung (de)"
+
+#: lib/placeholders.lua:1019
+msgid "Description (en)"
+msgstr "Beschreibung (en)"
+
+#: lib/placeholders.lua:1030
+msgid "Other descriptions"
+msgstr "Weitere Beschreibungen"
+
+#: lib/placeholders.lua:1064
+msgid "Wikidata"
+msgstr "Wikidata"
+
+#: lib/placeholders.lua:1075
+msgid "Other versions"
+msgstr "Andere Versionen"
+
+#: lib/placeholders.lua:1086
+msgid "Other fields"
+msgstr "Weitere Felder"

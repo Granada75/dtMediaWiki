@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # darktable embeds Lua 5.4
+      - uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: "5.4"
+
+      - uses: leafo/gh-actions-luarocks@v6
+
+      - run: luarocks make
+      - run: luarocks install luacheck
+
+      - run: luac -p *.lua lib/*.lua
+      - run: luacheck *.lua lib
