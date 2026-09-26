@@ -681,7 +681,7 @@ local function save_preset()
 if not ok then
 
   local message =
-    string_format(
+    string.format(
       _("dtMediaWiki: preset could not be saved: %s"),
       tostring(err)
     )
@@ -728,7 +728,7 @@ end
   )
 
   dt.print(
-    string-format(
+    string.format(
       _("dtMediaWiki: preset saved: %s"),
       name
     )
@@ -788,7 +788,7 @@ loaded_images = {}
   else
 
     status.label =
-      string_format(
+      string.format(
         _("%d images selected"),
 	#images
       )
@@ -954,7 +954,7 @@ local function paste_metadata()
   M.refresh()
 
   dt.print(
-    string_format(
+    string.format(
       _("dtMediaWiki: metadata pasted to %d image(s)"),
       #images
     )
