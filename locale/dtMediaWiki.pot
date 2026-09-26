@@ -549,31 +549,35 @@ msgstr ""
 msgid "Added [[Category:%s]] to %d image(s)"
 msgstr ""
 
-#: lib/category_search.lua:148
+#: lib/category_search.lua:211
 #, lua-format
 msgid "Add [[Category:%s]] to the selected images"
 msgstr ""
 
-#: lib/category_search.lua:174
+#: lib/category_search.lua:237
 msgid "Searching…"
 msgstr ""
 
-#: lib/category_search.lua:185
+#: lib/category_search.lua:248
 msgid "Search failed"
 msgstr ""
 
-#: lib/category_search.lua:195
+#: lib/category_search.lua:258
 msgid "No categories found"
 msgstr ""
 
-#: lib/category_search.lua:197
+#: lib/category_search.lua:260
 msgid "Click a category to add it to the selected images"
 msgstr ""
 
-#: lib/category_search.lua:203
+#: lib/category_search.lua:266
 msgid "Search"
 msgstr ""
 
-#: lib/category_search.lua:227
+#: lib/category_search.lua:290
 msgid "Wikimedia Commons category search"
+msgstr ""
+
+#: lib/category_search.lua:175
+msgid "Open category in web browser"
 msgstr ""

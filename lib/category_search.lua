@@ -111,17 +111,56 @@ local function add_category(category)
 end
 
 -----------------------------------------------------------------------
+-- Open category in web browser
+-----------------------------------------------------------------------
+
+local is_windows =
+  package.config:sub(1, 1) == "\\"
+
+local function category_url(category)
+
+  -- Encode everything except unreserved characters, so the URL
+  -- contains no shell metacharacters.
+  local title =
+    ("Category:" .. category)
+      :gsub(" ", "_")
+      :gsub("[^%w%-%._~:]", function(c)
+        return string.format("%%%02X", string.byte(c))
+      end)
+
+  return "https://commons.wikimedia.org/wiki/" .. title
+end
+
+local function open_category(category)
+
+  local url =
+    category_url(category)
+
+  local command
+
+  if is_windows then
+    command = 'start "" "' .. url .. '"'
+  elseif dt.configuration.running_os == "macos" then
+    command = "open '" .. url .. "'"
+  else
+    command = "xdg-open '" .. url .. "' >/dev/null 2>&1 &"
+  end
+
+  os.execute(command)
+end
+
+-----------------------------------------------------------------------
 -- Result buttons
 -----------------------------------------------------------------------
 
-local result_buttons = {}
+-- Each result row consists of an add button and an open button.
+local result_rows = {}
 
 for i = 1, MAX_RESULTS do
 
-  local button =
+  local add_button =
     dt.new_widget("button") {
       label = "",
-      visible = false,
 
       clicked_callback = function()
         if results[i] then
@@ -130,28 +169,52 @@ for i = 1, MAX_RESULTS do
       end
     }
 
-  result_buttons[i] = button
-  result_box[#result_box + 1] = button
+  local open_button =
+    dt.new_widget("button") {
+      label = "↗",
+      tooltip = _("Open category in web browser"),
+
+      clicked_callback = function()
+        if results[i] then
+          open_category(results[i])
+        end
+      end
+    }
+
+  local row =
+    dt.new_widget("box") {
+      orientation = "horizontal",
+      visible = false,
+      add_button,
+      open_button
+    }
+
+  result_rows[i] = {
+    row = row,
+    add_button = add_button
+  }
+
+  result_box[#result_box + 1] = row
 end
 
 local function show_results(categories)
 
   results = categories
 
-  for i, button in ipairs(result_buttons) do
+  for i, result_row in ipairs(result_rows) do
 
     local category = categories[i]
 
     if category then
-      button.label = category
-      button.tooltip = string.format(
+      result_row.add_button.label = category
+      result_row.add_button.tooltip = string.format(
         _("Add [[Category:%s]] to the selected images"),
         category
       )
-      button.visible = true
+      result_row.row.visible = true
     else
-      button.label = ""
-      button.visible = false
+      result_row.add_button.label = ""
+      result_row.row.visible = false
     end
   end
 end

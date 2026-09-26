@@ -95,7 +95,8 @@ images. Named metadata presets can be saved and applied to selected images.
 
 The "Wikimedia Commons category search" module in the lighttable view
 searches Commons categories. Clicking a result adds that category to all
-selected images.
+selected images; the ↗ button next to it opens the category in the web
+browser.
 
 The export dialog supports global categories and additional templates or
 wikitext. Filename patterns can use image metadata placeholders including
