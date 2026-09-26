@@ -18,7 +18,20 @@ The previous external Lua dependencies `lua-sec`, `lua-luajson`, and
 
 Note that `mediawikiapi.lua` is independent of darktable.
 
-## Installation
+## Installation (per user, without root)
+
+- Clone or download the plugin, e.g. to `~/src/dtMediaWiki`
+  - `$ git clone https://github.com/trougnouf/dtMediaWiki.git ~/src/dtMediaWiki`
+- Link it into your darktable configuration directory
+  - `$ mkdir -p ~/.config/darktable/lua/contrib`
+  - `$ ln -s ~/src/dtMediaWiki ~/.config/darktable/lua/contrib/dtMediaWiki`
+  - Translations are only found in this location, as the plugin loads its
+    catalogs relative to the darktable configuration directory.
+- Activate the plugin in your darktable luarc config file
+  - `$ echo 'require "contrib/dtMediaWiki/dtMediaWiki"' >> ~/.config/darktable/luarc`
+- Restart darktable. With a git checkout, `git pull` and a restart update the plugin.
+
+## Installation (system-wide)
 
 - Download the plugin from [https://github.com/trougnouf/dtMediaWiki/archive/master.zip](https://github.com/trougnouf/dtMediaWiki/archive/master.zip)
 - Create the [darktable plugin directory](https://www.darktable.org/usermanual/en/lua_chapter.html#lua_usage) if it doesn't exist
