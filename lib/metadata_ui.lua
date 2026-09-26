@@ -534,7 +534,9 @@ local function apply_preset()
             )
 
           if current == nil
-              or current == "" then
+              or current == ""
+              or (type(current) == "table"
+                  and #current == 0) then
 
             local value =
               preset_value
