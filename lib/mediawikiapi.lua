@@ -39,6 +39,27 @@ else
   temp_dir =
     os.getenv("TMPDIR")
     or "/tmp"
+
+  -- /tmp is shared among users: create a private directory (0700)
+  -- so that cookies and request files cannot be read or replaced
+  -- through predictable names or symlinks.
+  local p = io.popen(
+    "mktemp -d '" ..
+    temp_dir:gsub("'", "'\\''") ..
+    "/dtmediawiki.XXXXXXXX' 2>/dev/null"
+  )
+
+  local private_dir = p and p:read("*l")
+
+  if p then
+    p:close()
+  end
+
+  if private_dir and private_dir ~= "" then
+    temp_dir = private_dir
+  else
+    print("dtMediaWiki: mktemp -d failed, using " .. temp_dir)
+  end
 end
 
 -- curl understands forward slashes on Windows and this avoids
