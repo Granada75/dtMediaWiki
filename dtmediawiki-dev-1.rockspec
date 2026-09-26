@@ -10,7 +10,6 @@ description = {
    license = "GPLv3",
 }
 dependencies = {
-  "luajson",
   "luasec",
   "multipart-post",
 }
