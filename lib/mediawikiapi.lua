@@ -520,7 +520,8 @@ local function decode_json(body)
     return nil
   end
 
-  local result, position, err =
+  -- TODO position is unused
+  local result, position, err = -- luacheck: ignore
     json.decode(body, 1, nil)
 
   if err then

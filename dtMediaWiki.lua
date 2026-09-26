@@ -491,7 +491,8 @@ local function trim(value)
     :gsub("%s+$", "")
 end
 
-local function parse_commons_categories(text)
+-- TODO unused, superseded by placeholders.parse_categories
+local function parse_commons_categories(text) -- luacheck: ignore
 
   local categories = {}
 
@@ -555,7 +556,8 @@ local function get_new_commons_categories(image)
   end
 
   -- Per-image Commons categories
-  for _, stored_value in ipairs(
+  -- TODO stored_value is unused, the inner loop repeats the same lookup
+  for _, stored_value in ipairs( -- luacheck: ignore
     placeholders.get_categories(image)
   ) do
 
@@ -959,7 +961,8 @@ local function get_commons_categories(image)
   return result
 end
 
-local function make_commons_categories(image)
+-- TODO unused, make_image_page builds the category links itself
+local function make_commons_categories(image) -- luacheck: ignore
 
   local lines = {}
 
@@ -980,7 +983,8 @@ end
 -- Additional Commons Wikitext
 -----------------------------------------------------------------------
 
-local function get_additional_wikitext()
+-- TODO unused, make_image_page reads additional_wikitext_widget itself
+local function get_additional_wikitext() -- luacheck: ignore
 
   local text =
     tostring(
@@ -1168,7 +1172,8 @@ local function register_storage_initialize(_, _, images, _, extra_data)
 
     if not is_valid_for_export then
       init_failures_count = init_failures_count + 1
-      local error_intro = ""
+      -- TODO initial value is unused, it is always overwritten below
+      local error_intro = "" -- luacheck: ignore
       if type(img) == 'number' then
          error_intro = translate("Error: ")
       else
@@ -1198,7 +1203,8 @@ local function register_storage_initialize(_, _, images, _, extra_data)
 end
 
 -- Temporary Commons preview button
-local preview_button =
+-- TODO unused, its entry in the export widget is commented out
+local preview_button = -- luacheck: ignore
   dt.new_widget("button") {
     label = translate("Write Commons preview"),
 

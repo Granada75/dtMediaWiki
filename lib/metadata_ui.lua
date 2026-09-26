@@ -283,7 +283,8 @@ local function same_field_value(
   return first
 end
 
-local function append_placeholder(
+-- TODO unused, no placeholder selector is wired up in the UI
+local function append_placeholder( -- luacheck: ignore
   text_widget,
   selector
 )
