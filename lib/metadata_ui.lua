@@ -445,6 +445,10 @@ local function save_loaded_metadata()
   end
 end
 
+-- Widgets have no change callbacks, so edits must be flushed
+-- explicitly before anything reads or overwrites the metadata.
+M.save = save_loaded_metadata
+
 -----------------------------------------------------------------------
 -- Apply metadata preset
 -----------------------------------------------------------------------
@@ -504,6 +508,8 @@ local function apply_preset()
     )
     return
   end
+
+  save_loaded_metadata()
 
   for _, image in ipairs(images) do
 
@@ -811,53 +817,6 @@ end
 end
 
 -----------------------------------------------------------------------
--- Save metadata field
------------------------------------------------------------------------
-
-local function save_field(field)
-
-  if updating then
-    return
-  end
-
-  local images =
-    selected_images()
-
-  if #images == 0 then
-    return
-  end
-
-  local field_widget =
-    metadata_widgets[field.name]
-
-  if not field_widget then
-    return
-  end
-
-  local text =
-    field_widget.text or ""
-
-  if text == MULTIPLE then
-    return
-  end
-
-  local value =
-    field_text_to_value(
-      field,
-      text
-    )
-
-  for _, image in ipairs(images) do
-
-    placeholders.set_field(
-      image,
-      field.name,
-      value
-    )
-  end
-end
-
------------------------------------------------------------------------
 -- Copy / paste Commons metadata
 -----------------------------------------------------------------------
 
@@ -927,6 +886,8 @@ local function paste_metadata()
 
     return
   end
+
+  save_loaded_metadata()
 
   for _, image in ipairs(images) do
 

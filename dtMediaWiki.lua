@@ -931,6 +931,9 @@ end
 --A function called before storage happens
 --This function can change the list of exported functions
 local function register_storage_initialize(_, _, images, _, extra_data)
+  -- Persist edits still pending in the metadata panel.
+  MetadataUI.save()
+
   local out_images = {}
   extra_data["failures_count"] = 0 -- For store() failures
   extra_data["init_img_cnt"] = #images
@@ -1068,6 +1071,8 @@ local preview_button =
         dt.print("dtMediaWiki: no image selected")
         return
       end
+
+      MetadataUI.save()
 
       local image = images[1]
 
