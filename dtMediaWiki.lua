@@ -390,6 +390,8 @@ end
 
 local function substitute_keywords(string, image)
   local username = dt.preferences.read(preferences_prefix, "username", "string")
+  -- Bot password logins use "User@botname", the account is "User".
+  username = username:match("^(.-)@") or username
   string = string:gsub("$USERNAME", username)
   string = string:gsub("$CREATOR", image.creator or username)
   string = string:gsub("$FILE_NAME", image.filename)
