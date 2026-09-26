@@ -606,7 +606,129 @@ local function get_dtmediawiki_descriptions(image)
     )
   end
 
+  for _, description in ipairs(
+    placeholders.get_field(
+      image,
+      "description_other"
+    )
+  ) do
+
+    description = trim(description)
+
+    if description ~= "" then
+      table.insert(
+        descriptions,
+        description
+      )
+    end
+  end
+
   return table.concat(descriptions, "\n")
+end
+
+-- Get per-image values of a multi-value metadata field, trimmed and
+-- without empty entries.
+local function get_field_values(image, name)
+
+  local result = {}
+
+  for _, value in ipairs(
+    placeholders.get_field(image, name)
+  ) do
+
+    value = trim(value)
+
+    if value ~= "" then
+      table.insert(result, value)
+    end
+  end
+
+  return result
+end
+
+-- Other fields from the metadata panel. Wikidata items are shown as
+-- an additional {{Information field}}.
+local function get_dtmediawiki_other_fields(image)
+
+  local fields =
+    get_field_values(image, "other_fields")
+
+  for _, item in ipairs(
+    get_field_values(image, "wikidata")
+  ) do
+
+    if item:match("^[Qq]%d+$") then
+      item = "{{Q|" .. item:upper() .. "}}"
+    end
+
+    table.insert(
+      fields,
+      "{{Information field|name=Wikidata|value=" .. item .. "}}"
+    )
+  end
+
+  return table.concat(fields)
+end
+
+-- Other versions from the metadata panel merged with the gallery
+-- generated from "alt:" tags.
+local function get_other_versions(image, tmp_img_fn)
+
+  local gallery =
+    get_alt_images(image, tmp_img_fn)
+
+  local files = {}
+
+  for _, file in ipairs(
+    get_field_values(image, "other_versions")
+  ) do
+
+    file = trim(
+      file:gsub("^%[%[", "")
+          :gsub("%]%]$", "")
+          :gsub("^[Ff]ile:", "")
+    )
+
+    if file ~= "" then
+      table.insert(files, file)
+    end
+  end
+
+  if #files == 0 then
+    return gallery
+  end
+
+  if gallery == "" then
+    return "<gallery showfilename=yes>\n"
+      .. table.concat(files, "\n")
+      .. "\n</gallery>"
+  end
+
+  return (gallery:gsub(
+    "</gallery>$",
+    function()
+      return table.concat(files, "\n") .. "\n</gallery>"
+    end
+  ))
+end
+
+-- Templates from the metadata panel, wrapped in {{...}} if needed.
+local function get_dtmediawiki_templates(image)
+
+  local templates = {}
+
+  for _, template in ipairs(
+    get_field_values(image, "templates")
+  ) do
+
+    if template:sub(1, 2) ~= "{{" then
+      template = "{{" .. template .. "}}"
+    end
+
+    table.insert(templates, template)
+  end
+
+  return templates
 end
 
 -- Generate an image page with all required info from tags, metadata, and such.
@@ -655,8 +777,9 @@ end
   local author = dt.preferences.read(preferences_prefix, "authorpattern", "string")
   author = substitute_keywords(author, image)
   table.insert(imgpg, "|author=" .. author)
-  table.insert(imgpg, '|other fields = ' .. get_other_fields(image, discarded_tags))
-  table.insert(imgpg, '|other versions = ' .. get_alt_images(image, tmp_img_fn))
+  table.insert(imgpg, '|other fields = ' .. get_other_fields(image, discarded_tags)
+    .. get_dtmediawiki_other_fields(image))
+  table.insert(imgpg, '|other versions = ' .. get_other_versions(image, tmp_img_fn))
   table.insert(imgpg, "}}")
   if image.latitude ~= nil and image.longitude ~= nil then
     table.insert(imgpg, "{{Location |1=" .. string.gsub(image.latitude, ",", ".")
@@ -672,6 +795,12 @@ table.insert(
   imgpg,
   "{{self|" .. get_license(image) .. "}}"
 )
+
+for _, template in ipairs(
+  get_dtmediawiki_templates(image)
+) do
+  table.insert(imgpg, template)
+end
 
 -----------------------------------------------------------------------
 -- Additional global Wikitext
