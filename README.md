@@ -71,6 +71,8 @@ without changing your main password.
   [Special:BotPasswords](https://commons.wikimedia.org/wiki/Special:BotPasswords)
 - Enter a bot name, e.g. `dtMediaWiki`, and click "Create"
 - Grant at least the following permissions:
+  - **Edit existing pages**
+  - **Create, edit, and move pages**
   - **Upload new files**
   - **Upload, replace, and move files** (only needed for the "overwrite" preference)
 - Click "Create" and note the generated password; it is only shown once
