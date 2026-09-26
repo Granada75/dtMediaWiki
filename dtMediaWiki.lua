@@ -97,12 +97,16 @@ dt.preferences.register(
   "allow_empty_description",
   "bool",
   translate("Commons: Allow empty 'Information|description' on page?"),
-  translate("If unchecked (default), images where both title and description metadata are empty will not be uploaded, as this results in an empty '{{Information|description=...}}' field on Wikimedia Commons. If checked, such uploads are allowed (unless the filename pattern specifically requires title or description)."),
+  translate("If unchecked (default), images where both title and description metadata are empty "
+    .. "will not be uploaded, as this results in an empty '{{Information|description=...}}' field "
+    .. "on Wikimedia Commons. If checked, such uploads are allowed (unless the filename pattern "
+    .. "specifically requires title or description)."),
   false
 )
 
 -- FIXME: can't figure enum out so using a text field in the meantime
--- see also: https://docs.darktable.org/lua/stable/lua.api.manual/darktable/darktable.preferences/#darktablepreferencesregister
+-- see also:
+-- https://docs.darktable.org/lua/stable/lua.api.manual/darktable/darktable.preferences/#darktablepreferencesregister
 dt.preferences.register(
   preferences_prefix,
   "default_license",
@@ -346,7 +350,7 @@ local function get_description(image)
   end
 end
 
-local function split(astring) 
+local function split(astring)
   local sep, fields = ",", {}
   local pattern = string.format("([^%s]+)", sep)
   astring:gsub(pattern, function(c) fields[#fields + 1] = c end)
@@ -998,7 +1002,8 @@ local function _register_storage_store_final_format_check(fn)
     -- TODO would be nice to assert that copy mode is used
     -- TODO add avif when this ticket will be solved https://phabricator.wikimedia.org/T257719
     msgout(translate(
-      ("dtMediaWiki._register_storage_store_final_format_check warning: using copy mode from an unsupported image format is known to cause a crash.")))
+      ("dtMediaWiki._register_storage_store_final_format_check warning: "
+        .. "using copy mode from an unsupported image format is known to cause a crash.")))
     msgout(
       translate("Error: ") .. fn ..
       translate(" has an unsupported extension, won't be exported to Wikimedia Commons in copy mode")
@@ -1042,10 +1047,10 @@ end
 --This function is called once all images are processed and all store calls are finished.
 local function register_storage_finalize(_, image_table, extra_data)
   local successfully_initialized_count = 0
-  for _ in pairs(image_table) do 
+  for _ in pairs(image_table) do
     successfully_initialized_count = successfully_initialized_count + 1
   end
-  
+
   local successfully_uploaded_count = successfully_initialized_count - extra_data["failures_count"]
 
   msgout(translate("exported ") .. successfully_uploaded_count .. "/" .. extra_data["init_img_cnt"] ..
@@ -1085,8 +1090,9 @@ local function register_storage_initialize(_, _, images, _, extra_data)
     -- BUG? images contain "0" value (with key 3 in tested instance) instead of dt_lua_image_t
     if type(img) == 'number' then
       is_valid_for_export = false
-      table.insert(failure_reasons, 
-        translate("BUG: dt.register_storage.initialize sent a number instead of dt_lua_image_t in images table: ") .. img
+      table.insert(failure_reasons,
+        translate("BUG: dt.register_storage.initialize sent a number instead of dt_lua_image_t in images table: ")
+          .. img
       )
     else
       -- Reason 1: License
@@ -1154,7 +1160,9 @@ local function register_storage_initialize(_, _, images, _, extra_data)
     and description_de_empty
     and description_en_empty then
          is_valid_for_export = false
-         table.insert(failure_reasons, translate("is missing both title and description, resulting in an empty 'Information|description' field on the Commons page (and the 'Allow empty Information|description...' preference is off)"))
+         table.insert(failure_reasons, translate("is missing both title and description, resulting in an empty "
+           .. "'Information|description' field on the Commons page "
+           .. "(and the 'Allow empty Information|description...' preference is off)"))
       end
     end
 
@@ -1166,7 +1174,7 @@ local function register_storage_initialize(_, _, images, _, extra_data)
       else
          error_intro = translate("Error: ") .. (img.path or "Unknown image") .. " "
       end
-      
+
       local unique_reasons = {}
       local seen_reasons_map = {}
       for _, reason in ipairs(failure_reasons) do
