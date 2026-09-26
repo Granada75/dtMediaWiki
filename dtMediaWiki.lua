@@ -10,6 +10,7 @@ Dependencies:
 local dt = require "darktable"
 local MediaWikiApi = require "contrib/dtMediaWiki/lib/mediawikiapi"
 local MetadataUI = require "contrib/dtMediaWiki/lib/metadata_ui"
+require "contrib/dtMediaWiki/lib/category_search"
 local placeholders = require "contrib/dtMediaWiki/lib/placeholders"
 local version = 92
 

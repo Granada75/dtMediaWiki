@@ -289,7 +289,7 @@ msgstr ""
 msgid "Metadata preset name"
 msgstr ""
 
-#: lib/metadata_ui.lua:134 lib/metadata_ui.lua:763
+#: lib/metadata_ui.lua:134 lib/metadata_ui.lua:763 lib/category_search.lua:64
 msgid "No image selected"
 msgstr ""
 
@@ -534,4 +534,50 @@ msgstr ""
 
 #: lib/placeholders.lua:1086
 msgid "Other fields"
+msgstr ""
+
+#: lib/category_search.lua:40
+msgid "Search Commons categories"
+msgstr ""
+
+#: lib/category_search.lua:41
+msgid "Search terms, eg: cemetery innsbruck"
+msgstr ""
+
+#: lib/category_search.lua:106
+#, lua-format
+msgid "Added [[Category:%s]] to %d image(s)"
+msgstr ""
+
+#: lib/category_search.lua:211
+#, lua-format
+msgid "Add [[Category:%s]] to the selected images"
+msgstr ""
+
+#: lib/category_search.lua:237
+msgid "Searching…"
+msgstr ""
+
+#: lib/category_search.lua:248
+msgid "Search failed"
+msgstr ""
+
+#: lib/category_search.lua:258
+msgid "No categories found"
+msgstr ""
+
+#: lib/category_search.lua:260
+msgid "Click a category to add it to the selected images"
+msgstr ""
+
+#: lib/category_search.lua:266
+msgid "Search"
+msgstr ""
+
+#: lib/category_search.lua:290
+msgid "Wikimedia Commons category search"
+msgstr ""
+
+#: lib/category_search.lua:175
+msgid "Open category in web browser"
 msgstr ""
