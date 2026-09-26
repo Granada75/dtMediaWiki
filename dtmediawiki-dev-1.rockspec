@@ -10,8 +10,6 @@ description = {
    license = "GPLv3",
 }
 dependencies = {
-  "luasec",
-  "multipart-post",
 }
 build = {
    type = "builtin",
