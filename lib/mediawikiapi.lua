@@ -293,6 +293,11 @@ local function curl_request(arguments)
       request_id .. "-stderr.txt"
     )
 
+  local status_file =
+    temp_file(
+      request_id .. "-status.txt"
+    )
+
   -------------------------------------------------------------
   -- curl configuration
   -------------------------------------------------------------
@@ -302,7 +307,9 @@ local function curl_request(arguments)
   table.insert(cfg, "silent\n")
   table.insert(cfg, "show-error\n")
   table.insert(cfg, "location\n")
-  table.insert(cfg, "fail-with-body\n")
+  -- HTTP status goes to stdout, see status_file. Checked manually
+  -- because fail-with-body needs curl >= 7.76.
+  table.insert(cfg, 'write-out = "%{http_code}"\n')
 
   table.insert(
     cfg,
@@ -415,6 +422,8 @@ local function curl_request(arguments)
     get_curl() ..
     " --config " ..
     shell_quote(config_file) ..
+    " > " ..
+    shell_quote(status_file) ..
     " 2> " ..
     shell_quote(stderr_file)
 
@@ -467,9 +476,13 @@ local function curl_request(arguments)
   -- Remove config immediately. It may contain credentials.
   -------------------------------------------------------------
 
+  local status =
+    tonumber(read_file(status_file) or "")
+
   remove_file(config_file)
   remove_file(response_file)
   remove_file(stderr_file)
+  remove_file(status_file)
 
   if not ok then
 
@@ -479,6 +492,16 @@ local function curl_request(arguments)
       "/" ..
       tostring(code) ..
       ")"
+    )
+
+    return nil
+  end
+
+  if status and status >= 400 then
+
+    throwUserError(
+      "HTTP error " ..
+      tostring(status)
     )
 
     return nil
@@ -738,6 +761,11 @@ function MediaWikiApi.uploadfile(
       request_id .. "-upload-stderr.txt"
     )
 
+  local status_file =
+    temp_file(
+      request_id .. "-upload-status.txt"
+    )
+
   ---------------------------------------------------------------------
   -- Build curl configuration.
   --
@@ -752,7 +780,9 @@ function MediaWikiApi.uploadfile(
   table.insert(cfg, "silent\n")
   table.insert(cfg, "show-error\n")
   table.insert(cfg, "location\n")
-  table.insert(cfg, "fail-with-body\n")
+  -- HTTP status goes to stdout, see status_file. Checked manually
+  -- because fail-with-body needs curl >= 7.76.
+  table.insert(cfg, 'write-out = "%{http_code}"\n')
 
   table.insert(
     cfg,
@@ -939,6 +969,8 @@ function MediaWikiApi.uploadfile(
     get_curl() ..
     " --config " ..
     shell_quote(config_file) ..
+    " > " ..
+    shell_quote(status_file) ..
     " 2> " ..
     shell_quote(stderr_file)
 
@@ -988,9 +1020,13 @@ function MediaWikiApi.uploadfile(
   -- Remove sensitive/request-specific files immediately.
   ---------------------------------------------------------------------
 
+  local status =
+    tonumber(read_file(status_file) or "")
+
   remove_file(config_file)
   remove_file(response_file)
   remove_file(stderr_file)
+  remove_file(status_file)
 
   if not ok then
 
@@ -1000,6 +1036,16 @@ function MediaWikiApi.uploadfile(
       "/" ..
       tostring(code) ..
       ")"
+    )
+
+    return false
+  end
+
+  if status and status >= 400 then
+
+    throwUserError(
+      "HTTP error " ..
+      tostring(status)
     )
 
     return false
