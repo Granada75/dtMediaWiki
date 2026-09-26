@@ -106,9 +106,10 @@ function M.list()
 
   local result = {}
 
-  -- Loop variable must not be "_", it would hide the translate function.
-  for _index, name in ipairs(order) do
+  -- Not "for _, name": "_" would hide the translate function.
+  for i = 1, #order do
 
+    local name = order[i]
     local def = registry[name]
 
     if def then
