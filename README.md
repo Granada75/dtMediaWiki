@@ -53,12 +53,34 @@ Note that `mediawikiapi.lua` is independent of darktable.
   - The backend uses the MediaWiki ClientLogin API and supports login
     continuations.
   - This will add the "Wikimedia Commons" entry into target storage.
+  - Instead of your main password, you can use a bot password, see below.
 - Ensure your image contains the following [metadata](https://docs.darktable.org/usermanual/stable/en/module-reference/utility-modules/shared/metadata-editor/) and [tags](https://docs.darktable.org/usermanual/stable/en/module-reference/utility-modules/shared/tagging/):
   - **title** and/or **description** – The default output filename is `title (filename) description.ext` or `title (filename).ext` depending on what is available
   - **rights** – Use something compatible with the [`{{self}}`](https://commons.wikimedia.org/wiki/Template:Self) template, some options are [`cc-by-sa-4.0`](https://commons.wikimedia.org/wiki/Template:Cc-by-sa-4.0), [`cc-by-4.0`](https://commons.wikimedia.org/wiki/Template:Cc-by-4.0), [`GFDL`](https://commons.wikimedia.org/wiki/Template:GFDL), see [Commons:Copyright tags](https://commons.wikimedia.org/wiki/Commons:Copyright_tags)
   - **tags** – Categories and templates. Any tag that matches `Category:something` will be added as `[[Category:something]]` (no need to include the brackets), likewise any template matching `{{something}}` will be added as-is.
 
 The image coordinates will be added if they exist, and the creator metadata will be added as `[[User:Wikimedia username|creator]]` if it has been set.
+
+### Bot password (app-specific password)
+
+The password is stored in plain text in the darktable configuration. A bot
+password limits what it can be used for and can be revoked at any time
+without changing your main password.
+
+- Log in to Wikimedia Commons and open
+  [Special:BotPasswords](https://commons.wikimedia.org/wiki/Special:BotPasswords)
+- Enter a bot name, e.g. `dtMediaWiki`, and click "Create"
+- Grant at least the following permissions:
+  - **Upload new files**
+  - **Upload, replace, and move files** (only needed for the "overwrite" preference)
+- Click "Create" and note the generated password; it is only shown once
+- In darktable preferences > lua options, set
+  - "Wikimedia username" to `YourUsername@dtMediaWiki` (as shown on the
+    confirmation page)
+  - "Wikimedia password" to the generated password
+
+A username containing `@` is logged in via the MediaWiki `action=login` API
+instead of ClientLogin.
 
 ## Commons metadata
 
