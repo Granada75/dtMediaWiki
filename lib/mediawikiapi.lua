@@ -83,6 +83,8 @@ local function temp_file(name)
          name
 end
 
+MediaWikiApi.temp_file = temp_file
+
 local cookie_file =
   temp_file("cookies.txt")
 

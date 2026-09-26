@@ -31,6 +31,9 @@ end
 local placeholders =
   require "contrib/dtMediaWiki/lib/placeholders"
 
+local MediaWikiApi =
+  require "contrib/dtMediaWiki/lib/mediawikiapi"
+
 local M = {}
 
 local MULTIPLE =
@@ -688,19 +691,9 @@ if not ok then
 
   dt.print(message)
 
-  local tmp =
-    os.getenv("TEMP")
-    or os.getenv("TMP")
-    or "."
-
-  local sep =
-    package.config:sub(1, 1)
-
   local f =
     io.open(
-      tmp
-      .. sep
-      .. "dtmediawiki-preset-save-error.txt",
+      MediaWikiApi.temp_file("preset-save-error.txt"),
       "w"
     )
 
